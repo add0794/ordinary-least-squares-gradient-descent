@@ -1,4 +1,4 @@
-kagglehub?=0.2.7
+kagglehub>=0.2.7
 matplotlib>=3.0.0
 numpy>=1.17.0
 pandas>=1.0.0
