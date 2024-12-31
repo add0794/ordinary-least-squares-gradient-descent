@@ -68,89 +68,105 @@ lr_model = LinearRegression(data['X_with_intercept_yes'], data['X_with_intercept
 
 # cases = ['no', 'yes']
 
-# extracurriculars = dict()
-# no_extracurriculars = pd.DataFrame()
-# yes_extracurriculars = pd.DataFrame()
+# no_extracurriculars_performance = pd.DataFrame()
+# yes_extracurriculars_performance = pd.DataFrame()
+
+# no_extracurriculars_coefficients = pd.DataFrame()
+# yes_extracurriculars_coefficients = pd.DataFrame()
+
+# cols = ['numpy', 'scipy', 'statsmodels', 'gradient descent', 'scikit-learn', 'ridge regression', 'lasso regression']
 
 # for case in cases:
 #     if case == 'no':
-#         pd.concat([no_extracurriculars, lr_model.fit_numpy(case)[2]])
-#         pd.concat([no_extracurriculars, lr_model.fit_scipy(case)[2]])
-#         pd.concat([no_extracurriculars, lr_model.fit_statsmodels(case)[2]])
-#     elif case == 'yes':
-#         pd.concat([yes_extracurriculars, lr_model.fit_numpy(case)[2]])
-#         pd.concat([yes_extracurriculars, lr_model.fit_scipy(case)[2]])
-#         pd.concat([yes_extracurriculars, lr_model.fit_statsmodels(case)[2]])
-#     else:
-#         break
-
-# print(no_extracurriculars)
-# print(yes_extracurriculars)
-
-# import pandas as pd
-
-# cases = ['no', 'yes']
-# extracurriculars = dict() 
-# no_extracurriculars = pd.DataFrame()
-# yes_extracurriculars = pd.DataFrame()
-
-# for case in cases:
-#     if case == 'no':
-#         no_extracurriculars = pd.concat([no_extracurriculars, lr_model.fit_numpy(case)[2]], ignore_index=True)
-#         no_extracurriculars = pd.concat([no_extracurriculars, lr_model.fit_scipy(case)[2]], ignore_index=True)
-#         no_extracurriculars = pd.concat([no_extracurriculars, lr_model.fit_statsmodels(case)[2]], ignore_index=True) 
-#     elif case == 'yes':
-#         yes_extracurriculars = pd.concat([yes_extracurriculars, lr_model.fit_numpy(case)[2]], ignore_index=True)
-#         yes_extracurriculars = pd.concat([yes_extracurriculars, lr_model.fit_scipy(case)[2]], ignore_index=True)
-#         yes_extracurriculars = pd.concat([yes_extracurriculars, lr_model.fit_statsmodels(case)[2]], ignore_index=True)
-
-# print(no_extracurriculars)
-# print(yes_extracurriculars)
-
-# import pandas as pd
-
-# cases = ['no', 'yes']
-# extracurriculars = dict() 
-
-# for case in cases:
-#     if case == 'no':
-#         no_extracurriculars = pd.concat([
+#         no_extracurriculars_performance = pd.concat([
+#             pd.DataFrame({f'numpy_{case}': [lr_model.fit_numpy(case)[0:1]]}), 
+#             pd.DataFrame({f'scipy_{case}': [lr_model.fit_scipy(case)[0:1]]}), 
+#             pd.DataFrame({f'statsmodels_{case}': [lr_model.fit_statsmodels(case)[0:1]]})
+#         ], axis=1, ignore_index=True) 
+#         # no_extracurriculars_performance.columns = cols
+#         no_extracurriculars_coefficients = pd.concat([
 #             lr_model.fit_numpy(case)[2], 
 #             lr_model.fit_scipy(case)[2], 
 #             lr_model.fit_statsmodels(case)[2]
-#         ], axis=1, ignore_index=True, columns=['numpy', 'scipy', 'statsmodels']) 
+#         ], axis=1, ignore_index=True) 
+#         # no_extracurriculars_coefficients.columns = cols
 #     elif case == 'yes':
-#         yes_extracurriculars = pd.concat([
+#         yes_extracurriculars_performance = pd.concat([
+#             pd.DataFrame({f'numpy_{case}': [lr_model.fit_numpy(case)[0]]}), 
+#             pd.DataFrame({f'scipy_{case}': [lr_model.fit_scipy(case)[0]]}), 
+#             pd.DataFrame({f'statsmodels_{case}': [lr_model.fit_statsmodels(case)[0]]})
+#         ], axis=1, ignore_index=True) 
+#         # yes_extracurriculars_performance.columns = cols
+#         yes_extracurriculars_coefficients = pd.concat([
 #             lr_model.fit_numpy(case)[2], 
 #             lr_model.fit_scipy(case)[2], 
 #             lr_model.fit_statsmodels(case)[2]
-#         ], axis=1, ignore_index=True, columns=['numpy', 'scipy', 'statsmodels'])
+#         ], axis=1, ignore_index=True)
+#         # yes_extracurriculars_coefficients.columns = cols
 
-# print(no_extracurriculars)
-# print(yes_extracurriculars)
+# print(no_extracurriculars_performance)
+# print(yes_extracurriculars_performance)
+# print(no_extracurriculars_coefficients)
+# print(yes_extracurriculars_coefficients)
 
-import pandas as pd
+# cases = ['no', 'yes']
+
+# for case in cases:
+#     if case == 'no':
+#         no_extracurriculars_results = pd.DataFrame()
+#         for method in ['numpy', 'scipy', 'statsmodels']:
+#             elapsed_time, memory_usage, coefficients = lr_model._fit(case, method)
+#             results_df = pd.DataFrame({'Method': [method], 
+#                                       'Elapsed Time': [elapsed_time], 
+#                                       'Memory Usage': [memory_usage]})
+#             no_extracurriculars_results = pd.concat([no_extracurriculars_results, results_df], axis=0, ignore_index=True) 
+#     elif case == 'yes': 
+#         yes_extracurriculars_results = pd.DataFrame()
+#         for method in ['numpy', 'scipy', 'statsmodels']:
+#             elapsed_time, memory_usage, coefficients = self._fit(case, method)
+#             results_df = pd.DataFrame({'Method': [method], 
+#                                       'Elapsed Time': [elapsed_time], 
+#                                       'Memory Usage': [memory_usage]})
+#             yes_extracurriculars_results = pd.concat([yes_extracurriculars_results, results_df], axis=0, ignore_index=True) 
+
+# print(no_extracurriculars_results)
+# print(yes_extracurriculars_results)
 
 cases = ['no', 'yes']
 
 for case in cases:
+    results_df = pd.DataFrame()
+    coefficients_df = pd.DataFrame()
+    for method in ['numpy', 'scipy', 'statsmodels']:
+        if case == 'no':
+            elapsed_time, memory_usage, coefficients = lr_model.fit_numpy(case) 
+            elapsed_time, memory_usage, coefficients = lr_model.fit_scipy(case) 
+            elapsed_time, memory_usage, coefficients = lr_model.fit_statsmodels(case) 
+        elif case == 'yes':
+            elapsed_time, memory_usage, coefficients = lr_model.fit_numpy(case) 
+            elapsed_time, memory_usage, coefficients = lr_model.fit_scipy(case) 
+            elapsed_time, memory_usage, coefficients = lr_model.fit_statsmodels(case)         
+        results_df = pd.concat([results_df, 
+                                pd.DataFrame({'Method': [method], 
+                                             'Elapsed Time': [elapsed_time], 
+                                             'Memory Usage': [memory_usage]})], 
+                               axis=0, 
+                               ignore_index=True) 
+        coefficients_df = pd.concat([coefficients_df, 
+                                    pd.DataFrame({f'{method}_{case}': coefficients})], 
+                                    axis=1)
+    
     if case == 'no':
-        no_extracurriculars = pd.concat([
-            lr_model.fit_numpy(case)[2], 
-            lr_model.fit_scipy(case)[2], 
-            lr_model.fit_statsmodels(case)[2]
-        ], axis=1, ignore_index=True) 
-        no_extracurriculars.columns = ['numpy', 'scipy', 'statsmodels']
+        no_extracurriculars_results = results_df
+        no_extracurriculars_coefficients = coefficients_df
     elif case == 'yes':
-        yes_extracurriculars = pd.concat([
-            lr_model.fit_numpy(case)[2], 
-            lr_model.fit_scipy(case)[2], 
-            lr_model.fit_statsmodels(case)[2]
-        ], axis=1, ignore_index=True)
-        yes_extracurriculars.columns = ['numpy', 'scipy', 'statsmodels']
+        yes_extracurriculars_results = results_df
+        yes_extracurriculars_coefficients = coefficients_df
 
-print(no_extracurriculars)
-print(yes_extracurriculars)
+print(no_extracurriculars_results)
+print(no_extracurriculars_coefficients)
+print(yes_extracurriculars_results)
+print(yes_extracurriculars_coefficients)
 
 # print(data)
 
