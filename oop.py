@@ -66,13 +66,91 @@ data = load_and_preprocess_data('nikhil7280/student-performance-multiple-linear-
 
 lr_model = LinearRegression(data['X_with_intercept_yes'], data['X_with_intercept_no'], data['y'], data['cols_yes'], data['cols_no'])
 
-cases = ['yes', 'no']
+# cases = ['no', 'yes']
+
+# extracurriculars = dict()
+# no_extracurriculars = pd.DataFrame()
+# yes_extracurriculars = pd.DataFrame()
+
+# for case in cases:
+#     if case == 'no':
+#         pd.concat([no_extracurriculars, lr_model.fit_numpy(case)[2]])
+#         pd.concat([no_extracurriculars, lr_model.fit_scipy(case)[2]])
+#         pd.concat([no_extracurriculars, lr_model.fit_statsmodels(case)[2]])
+#     elif case == 'yes':
+#         pd.concat([yes_extracurriculars, lr_model.fit_numpy(case)[2]])
+#         pd.concat([yes_extracurriculars, lr_model.fit_scipy(case)[2]])
+#         pd.concat([yes_extracurriculars, lr_model.fit_statsmodels(case)[2]])
+#     else:
+#         break
+
+# print(no_extracurriculars)
+# print(yes_extracurriculars)
+
+# import pandas as pd
+
+# cases = ['no', 'yes']
+# extracurriculars = dict() 
+# no_extracurriculars = pd.DataFrame()
+# yes_extracurriculars = pd.DataFrame()
+
+# for case in cases:
+#     if case == 'no':
+#         no_extracurriculars = pd.concat([no_extracurriculars, lr_model.fit_numpy(case)[2]], ignore_index=True)
+#         no_extracurriculars = pd.concat([no_extracurriculars, lr_model.fit_scipy(case)[2]], ignore_index=True)
+#         no_extracurriculars = pd.concat([no_extracurriculars, lr_model.fit_statsmodels(case)[2]], ignore_index=True) 
+#     elif case == 'yes':
+#         yes_extracurriculars = pd.concat([yes_extracurriculars, lr_model.fit_numpy(case)[2]], ignore_index=True)
+#         yes_extracurriculars = pd.concat([yes_extracurriculars, lr_model.fit_scipy(case)[2]], ignore_index=True)
+#         yes_extracurriculars = pd.concat([yes_extracurriculars, lr_model.fit_statsmodels(case)[2]], ignore_index=True)
+
+# print(no_extracurriculars)
+# print(yes_extracurriculars)
+
+# import pandas as pd
+
+# cases = ['no', 'yes']
+# extracurriculars = dict() 
+
+# for case in cases:
+#     if case == 'no':
+#         no_extracurriculars = pd.concat([
+#             lr_model.fit_numpy(case)[2], 
+#             lr_model.fit_scipy(case)[2], 
+#             lr_model.fit_statsmodels(case)[2]
+#         ], axis=1, ignore_index=True, columns=['numpy', 'scipy', 'statsmodels']) 
+#     elif case == 'yes':
+#         yes_extracurriculars = pd.concat([
+#             lr_model.fit_numpy(case)[2], 
+#             lr_model.fit_scipy(case)[2], 
+#             lr_model.fit_statsmodels(case)[2]
+#         ], axis=1, ignore_index=True, columns=['numpy', 'scipy', 'statsmodels'])
+
+# print(no_extracurriculars)
+# print(yes_extracurriculars)
+
+import pandas as pd
+
+cases = ['no', 'yes']
 
 for case in cases:
-    numpy = lr_model.fit_numpy(case)
-    scipy = lr_model.fit_scipy(case)
-    statsmodels = lr_model.fit_statsmodels(case)
+    if case == 'no':
+        no_extracurriculars = pd.concat([
+            lr_model.fit_numpy(case)[2], 
+            lr_model.fit_scipy(case)[2], 
+            lr_model.fit_statsmodels(case)[2]
+        ], axis=1, ignore_index=True) 
+        no_extracurriculars.columns = ['numpy', 'scipy', 'statsmodels']
+    elif case == 'yes':
+        yes_extracurriculars = pd.concat([
+            lr_model.fit_numpy(case)[2], 
+            lr_model.fit_scipy(case)[2], 
+            lr_model.fit_statsmodels(case)[2]
+        ], axis=1, ignore_index=True)
+        yes_extracurriculars.columns = ['numpy', 'scipy', 'statsmodels']
 
+print(no_extracurriculars)
+print(yes_extracurriculars)
 
 # print(data)
 

@@ -357,7 +357,7 @@ class LinearRegression:
         """
         features, label, cols = self._get_case_data(case)
         
-        print(f"This is a {method} summary for {case.capitalize()} case!")
+        # print(f"This is a {method} summary for {case.capitalize()} case!")
 
         # Start time measurement
         start_time = time.time()
@@ -373,7 +373,7 @@ class LinearRegression:
             beta_encoding = self.model.params.values
             # beta_series = pd.Series(data=beta_encoding, index=self.model.params.index)
         else:
-            raise ValueError("Method must be 'numpy' or 'scipy'")
+            raise ValueError("Method must be {method}.")
         
         beta_series = pd.Series(data=beta_encoding, index=cols)
 
@@ -386,11 +386,11 @@ class LinearRegression:
         total_memory = beta_memory + series_memory
 
         # Display results
-        print(f"Elapsed Time: {elapsed_time:.6f} seconds")
-        print(f"Memory Usage: {total_memory} bytes (Beta: {beta_memory} bytes, Series: {series_memory} bytes)")
-        print(f"Beta Coefficients:\n{beta_series}\n")
+        # print(f"Elapsed Time: {elapsed_time:.6f} seconds")
+        # print(f"Memory Usage: {total_memory} bytes (Beta: {beta_memory} bytes, Series: {series_memory} bytes)")
+        # print(f"Beta Coefficients:\n{beta_series}\n")
         
-        return beta_series
+        return elapsed_time, total_memory, beta_series
         
     # Wrapper for NumPy
     def fit_numpy(self, case):
@@ -403,155 +403,6 @@ class LinearRegression:
     # Wrapper for Statsmodels
     def fit_statsmodels(self, case):
         return self._fit(case=case, method='statsmodels')
-    # def _fit(self, case, method):
-    #     """
-    #     Generalized fit method for computing parameters using the specified method.
-    #     """
-    #     features, label, cols = self._get_case_data(case)
-        
-    #     print(f"This is a {method} summary for {case.capitalize()} case!")
-
-    #     # Start time measurement
-    #     start_time = time.time()
-
-    #     # Compute beta coefficients based on the chosen method
-    #     if method == 'numpy':
-    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
-    #         beta_series = pd.Series(data=beta_encoding, index=cols)
-    #     elif method == 'scipy':
-    #         beta_encoding = inv(features.T @ features) @ features.T @ label
-    #         beta_series = pd.Series(data=beta_encoding, index=cols)
-    #     elif method == 'statsmodels':
-    #         X_constant = sm.add_constant(features)
-    #         self.model = sm.OLS(label, X_constant).fit()
-    #         beta_series = pd.Series(data=self.model.params.values, index=self.model.params.index)
-    #     else:
-    #         raise ValueError("Method must be 'numpy', 'scipy', or 'statsmodels'")
-
-    #     # Measure elapsed time
-    #     elapsed_time = time.time() - start_time
-
-    #     # Measure memory usage
-    #     beta_memory = sys.getsizeof(beta_encoding) if method != 'statsmodels' else sys.getsizeof(self.model)
-    #     series_memory = sys.getsizeof(beta_series)
-    #     total_memory = beta_memory + series_memory
-
-    #     # Display results
-    #     print(f"Elapsed Time: {elapsed_time:.6f} seconds")
-    #     print(f"Memory Usage: {total_memory} bytes (Beta: {beta_memory} bytes, Series: {series_memory} bytes)")
-    #     print(f"Beta Coefficients:\n{beta_series}\n")
-        
-    #     return beta_series
-
-    # # Wrapper for NumPy
-    # def fit_numpy(self, case):
-    #     return self._fit(case=case, method='numpy')
-
-    # # Wrapper for SciPy
-    # def fit_scipy(self, case):
-    #     return self._fit(case=case, method='scipy')
-
-    # # Wrapper for Statsmodels
-    # def fit_statsmodels(self, case):
-    #     return self._fit(case=case, method='statsmodels')
-
-    # def fit_numpy(self, case):
-    #     """Compute parameters using NumPy method"""
-    #     features, label, cols = self._get_case_data(case)
-        
-    #     print('This is a numpy summary!')
-
-    #     # Start time measurement
-    #     start_time = time.time()
-        
-    #     # Compute beta coefficients using the chosen method
-
-    #     beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ self.label
-
-
-    #     beta_series = pd.Series(data=beta_encoding, index=cols)
-        
-    #     # Measure elapsed time
-    #     elapsed_time = time.time() - start_time
-        
-    #     # Measure memory usage
-    #     beta_memory = sys.getsizeof(beta_encoding)
-    #     series_memory = sys.getsizeof(beta_series)
-    #     total_memory = beta_memory + series_memory
-        
-    #     # Update performance metrics
-    #     # performance_metrics[method] = {'time': elapsed_time, 'memory': total_memory}
-        
-    #     # Display results
-    #     # print(f"\n{method.capitalize()} Method - {case.capitalize()} Case:")
-    #     print(f"Elapsed Time: {elapsed_time:.6f} seconds")
-    #     print(f"Memory Usage: {total_memory} bytes (Beta: {beta_memory} bytes, Series: {series_memory} bytes)")
-    #     print(f"Beta Coefficients:\n{beta_series}\n")
-        
-    #     return beta_series   
-
-    # def fit_scipy(self, case):
-    #     """Compute parameters using SciPy method"""
-    #     features, label, cols = self._get_case_data(case)
-        
-    #     print('This is a scipy summary!')
-
-    #     # Start time measurement
-    #     start_time = time.time()
-        
-    #     # Compute beta coefficients using the chosen method
-    #     beta_encoding = inv(features.T @ features) @ features.T @ self.label
-
-    #     beta_series = pd.Series(data=beta_encoding, index=cols)
-        
-    #     # Measure elapsed time
-    #     elapsed_time = time.time() - start_time
-        
-    #     # Measure memory usage
-    #     beta_memory = sys.getsizeof(beta_encoding)
-    #     series_memory = sys.getsizeof(beta_series)
-    #     total_memory = beta_memory + series_memory
-        
-    #     # Update performance metrics
-    #     # performance_metrics[method] = {'time': elapsed_time, 'memory': total_memory}
-        
-    #     # Display results
-    #     # print(f"\n{method.capitalize()} Method - {case.capitalize()} Case:")
-    #     print(f"Elapsed Time: {elapsed_time:.6f} seconds")
-    #     print(f"Memory Usage: {total_memory} bytes (Beta: {beta_memory} bytes, Series: {series_memory} bytes)")
-    #     print(f"Beta Coefficients:\n{beta_series}\n")
-        
-    #     return beta_series   
-
-    # def fit_statsmodels(self, case):
-    #     """
-    #     Compute statsmodels for the specified case ('yes' or 'no').
-    #     """
-    #     features, label, cols = self._get_case_data(case)
-        
-    #     print('This is a statsmodels summary!')
-
-    #     # Start time measurement
-    #     start_time = time.time()
-
-    #     X_constant = sm.add_constant(features)
-    #     self.model = sm.OLS(label, X_constant).fit()
-    #     self.summary = self.model.summary()
-        
-    #     # Measure elapsed time
-    #     elapsed_time = time.time() - start_time
-        
-    #     # Measure memory usage
-    #     beta_memory = sys.getsizeof(self.model)
-    #     total_memory = beta_memory
-                
-    #     # Display results
-    #     # print(f"\n{method.capitalize()} Method - {case.capitalize()} Case:")
-    #     print(f"Elapsed Time: {elapsed_time:.6f} seconds")
-    #     print(f"Memory Usage: {total_memory} bytes (Beta: {beta_memory} bytes")
-    #     print(f"Beta Coefficients:\n{self.model.params.values}\n")
-        
-    #     return self.model, self.summary
 
     def gradient_descent(self, case, learning_rate, epochs, precision):
         """
