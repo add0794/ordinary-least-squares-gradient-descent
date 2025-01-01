@@ -5,7 +5,7 @@ import os
 import pandas as pd 
 from scipy.linalg import inv
 import seaborn as sns
-from sklearn import linear_model
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import statsmodels.api as sm
@@ -183,44 +183,44 @@ class Visualizer:
         plt.title("Correlation Matrix")
         plt.show()
 
-    @staticmethod
-    def plot_histograms(data, columns=None):
-        """
-        Plot histograms for specified columns or all numeric columns in the data.
-        """
-        if columns is None:
-            columns = data.select_dtypes(include='number').columns
+    # @staticmethod
+    # def plot_histograms(data, columns=None):
+    #     """
+    #     Plot histograms for specified columns or all numeric columns in the data.
+    #     """
+    #     if columns is None:
+    #         columns = data.select_dtypes(include='number').columns
         
-        data[columns].hist(figsize=(12, 10), bins=15, color='blue', alpha=0.7)
-        plt.suptitle("Histograms of Numeric Features")
-        plt.show()
+    #     data[columns].hist(figsize=(12, 10), bins=15, color='blue', alpha=0.7)
+    #     plt.suptitle("Histograms of Numeric Features")
+    #     plt.show()
 
-    @staticmethod
-    def plot_scatter_matrix(data, columns=None):
-        """
-        Plot a scatter matrix for the specified columns or all numeric columns.
-        """
-        if columns is None:
-            columns = data.select_dtypes(include='number').columns
+    # @staticmethod
+    # def plot_scatter_matrix(data, columns=None):
+    #     """
+    #     Plot a scatter matrix for the specified columns or all numeric columns.
+    #     """
+    #     if columns is None:
+    #         columns = data.select_dtypes(include='number').columns
         
-        sns.pairplot(data[columns], diag_kind='kde')
-        plt.suptitle("Scatter Matrix", y=1.02)
-        plt.show()
+    #     sns.pairplot(data[columns], diag_kind='kde')
+    #     plt.suptitle("Scatter Matrix", y=1.02)
+    #     plt.show()
 
-    @staticmethod
-    def plot_box_plots(data, columns=None):
-        """
-        Plot box plots for specified columns or all numeric columns.
-        """
-        if columns is None:
-            columns = data.select_dtypes(include='number').columns
+    # @staticmethod
+    # def plot_box_plots(data, columns=None):
+    #     """
+    #     Plot box plots for specified columns or all numeric columns.
+    #     """
+    #     if columns is None:
+    #         columns = data.select_dtypes(include='number').columns
         
-        data_melted = data.melt(value_vars=columns)
-        plt.figure(figsize=(12, 6))
-        sns.boxplot(x="variable", y="value", data=data_melted)
-        plt.title("Box Plots of Numeric Features")
-        plt.xticks(rotation=45)
-        plt.show()
+    #     data_melted = data.melt(value_vars=columns)
+    #     plt.figure(figsize=(12, 6))
+    #     sns.boxplot(x="variable", y="value", data=data_melted)
+    #     plt.title("Box Plots of Numeric Features")
+    #     plt.xticks(rotation=45)
+    #     plt.show()
 
     @staticmethod
     def plot_target_distribution(data, target_column):
@@ -228,12 +228,11 @@ class Visualizer:
         Plot the distribution of the target variable.
         """
         plt.figure(figsize=(8, 6))
-        sns.histplot(data[target_column], kde=True, bins=15, color='green', alpha=0.7)
+        sns.histplot(x=f'{target_column}', data=data, kde=True, bins=15, color='green', alpha=0.7)
         plt.title(f"Distribution of Target Variable: {target_column}")
         plt.xlabel(target_column)
         plt.ylabel("Frequency")
         plt.show()
-
 
 class LinearRegression:
     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
@@ -257,18 +256,71 @@ class LinearRegression:
         else:
             raise ValueError("Case must be 'yes' or 'no'")
 
-    def _fit(self, case, method):
-        """
-        Generalized fit method for computing parameters using specified method.
-        """
-        features, label, cols = self._get_case_data(case)
+    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+    #     """
+    #     Generalized fit method for computing parameters using specified method.
+    #     """
+    #     features, label, cols = self._get_case_data(case) 
+    # # ... rest of your _fit() method ... 
         
-        # print(f"This is a {method} summary for {case.capitalize()} case!")
+    #     # print(f"This is a {method} summary for {case.capitalize()} case!")
 
-        # Start time measurement
+    #     # Start time measurement
+    #     start_time = time.time()
+
+    #     # Compute beta coefficients based on the chosen method
+    #     if method == 'numpy':
+    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         beta_encoding = inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         self.model = sm.OLS(label, X_constant).fit()
+    #         beta_encoding = self.model.params.values
+    #     elif method == 'scikit-learn':
+    #         # Remove intercept column for sklearn
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+
+    #         # Create a dictionary to store models
+    #         self.models = {} 
+
+    #         if ridge_alpha is not None:
+    #             self.models["Ridge"] = Ridge(alpha=ridge_alpha, fit_intercept=True).fit(X, label)
+    #             beta_encoding_ridge = np.insert(self.models["Ridge"].coef_, 0, self.models["Ridge"].intercept_) 
+
+    #         if lasso_alpha is not None:
+    #             self.models["Lasso"] = Lasso(alpha=lasso_alpha, fit_intercept=True).fit(X, label)
+    #             beta_encoding_lasso = np.insert(self.models["Lasso"].coef_, 0, self.models["Lasso"].intercept_)
+
+    #         self.models["Linear Regression"] = LinearRegression(fit_intercept=True).fit(X, label)
+    #         beta_encoding_lr = np.insert(self.models["Linear Regression"].coef_, 0, self.models["Linear Regression"].intercept_)
+
+    #         # Determine which coefficients to use
+    #         if ridge_alpha is not None:
+    #             beta_encoding = beta_encoding_ridge
+    #         elif lasso_alpha is not None:
+    #             beta_encoding = beta_encoding_lasso
+    #         else: 
+    #             beta_encoding = beta_encoding_lr
+    #     else:
+    #         raise ValueError("Method must be {method}.")
+        
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+
+    #     # Measure elapsed time
+    #     elapsed_time = time.time() - start_time
+
+    #     # Measure memory usage
+    #     beta_memory = sys.getsizeof(beta_encoding)
+    #     series_memory = sys.getsizeof(beta_series)
+    #     total_memory = beta_memory + series_memory
+        
+    #     return elapsed_time, total_memory, beta_series
+
+    def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+        features, label, cols = self._get_case_data(case)
         start_time = time.time()
 
-        # Compute beta coefficients based on the chosen method
         if method == 'numpy':
             beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
         elif method == 'scipy':
@@ -277,27 +329,174 @@ class LinearRegression:
             X_constant = sm.add_constant(features)
             self.model = sm.OLS(label, X_constant).fit()
             beta_encoding = self.model.params.values
-            # beta_series = pd.Series(data=beta_encoding, index=self.model.params.index)
+        elif method == 'scikit-learn':
+            X = features[:, 1:] if features.shape[1] == len(cols) else features
+            model = LinearRegression()
+            model.fit(X, label)
+            beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+        elif method == 'ridge':
+            if ridge_alpha is None:
+                raise ValueError("ridge_alpha must be provided for Ridge regression")
+            X = features[:, 1:] if features.shape[1] == len(cols) else features
+            model = Ridge(alpha=ridge_alpha)
+            model.fit(X, label)
+            beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+        elif method == 'lasso':
+            if lasso_alpha is None:
+                raise ValueError("lasso_alpha must be provided for Lasso regression")
+            X = features[:, 1:] if features.shape[1] == len(cols) else features
+            model = Lasso(alpha=lasso_alpha)
+            model.fit(X, label)
+            beta_encoding = np.insert(model.coef_, 0, model.intercept_)
         else:
-            raise ValueError("Method must be {method}.")
-        
+            raise ValueError(f"Method must be numpy, scipy, statsmodels, scikit-learn, ridge, or lasso. Got {method}")
+
         beta_series = pd.Series(data=beta_encoding, index=cols)
-
-        # Measure elapsed time
         elapsed_time = time.time() - start_time
-
-        # Measure memory usage
         beta_memory = sys.getsizeof(beta_encoding)
         series_memory = sys.getsizeof(beta_series)
         total_memory = beta_memory + series_memory
-
-        # Display results
-        # print(f"Elapsed Time: {elapsed_time:.6f} seconds")
-        # print(f"Memory Usage: {total_memory} bytes (Beta: {beta_memory} bytes, Series: {series_memory} bytes)")
-        # print(f"Beta Coefficients:\n{beta_series}\n")
-        
+            
         return elapsed_time, total_memory, beta_series
+
+    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+    #     features, label, cols = self._get_case_data(case)
+    #     start_time = time.time()
+
+    #     if method == 'numpy':
+    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         beta_encoding = inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         self.model = sm.OLS(label, X_constant).fit()
+    #         beta_encoding = self.model.params.values
+    #     elif method == 'scikit-learn':
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         self.models["scikit-learn"] = LinearRegression().fit(X, label)
+    #         self.coefficients["scikit-learn"] = np.insert(self.models["scikit-learn"].coef_, 0, self.models["scikit-learn"].intercept_)
+    #         beta_encoding = self.coefficients["scikit-learn"]
+    #     elif method == 'ridge':            
+    #         if ridge_alpha is not None:
+    #             model = Ridge(alpha=ridge_alpha).fit(X, label)
+    #             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #             self.models["Ridge"] = model
+    #             self.coefficients["Ridge"] = beta_encoding
+    #         else:
+    #             continue
+    #     elif method == 'lasso':
+    #         if lasso_alpha is not None:
+    #             model = Lasso(alpha=lasso_alpha).fit(X, label)
+    #             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #             self.models["Lasso"] = model
+    #             self.coefficients["Lasso"] = beta_encoding
+    #         else:
+    #             continue
+    #     else:
+    #         raise ValueError(f"Method must be numpy, scipy, statsmodels, scikit-learn, ridge, or lasso. Got {method}")
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+    #     elapsed_time = time.time() - start_time
+    #     beta_memory = sys.getsizeof(beta_encoding)
+    #     series_memory = sys.getsizeof(beta_series)
+    #     total_memory = beta_memory + series_memory
+            
+    #     return elapsed_time, total_memory, beta_series
+
+    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+    #     """
+    #     Generalized fit method for computing parameters using specified method.
+    #     """
+    #     features, label, cols = self._get_case_data(case)
+    #     start_time = time.time()
+
+    #     if method == 'numpy':
+    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         beta_encoding = inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         self.model = sm.OLS(label, X_constant).fit()
+    #         beta_encoding = self.model.params.values
+    #     elif method == 'scikit-learn':
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         self.models = {}
+    #         self.coefficients = {}
+            
+    #         if ridge_alpha is not None:
+    #             self.models["Ridge"] = Ridge(alpha=ridge_alpha, fit_intercept=True).fit(X, label)
+    #             self.coefficients["Ridge"] = np.insert(self.models["Ridge"].coef_, 0, self.models["Ridge"].intercept_)
+            
+    #         if lasso_alpha is not None:
+    #             self.models["Lasso"] = Lasso(alpha=lasso_alpha, fit_intercept=True).fit(X, label)
+    #             self.coefficients["Lasso"] = np.insert(self.models["Lasso"].coef_, 0, self.models["Lasso"].intercept_)
+            
+    #         self.models["scikit-learn"] = LinearRegression(fit_intercept=True).fit(X, label)
+    #         self.coefficients["scikit-learn"] = np.insert(self.models["scikit-learn"].coef_, 0, self.models["scikit-learn"].intercept_)
+            
+    #         beta_encoding = self.coefficients["scikit-learn"]
+    #     else:
+    #         raise ValueError(f"Method must be numpy, scipy, statsmodels, or scikit-learn. Got {method}")
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+    #     elapsed_time = time.time() - start_time
+    #     beta_memory = sys.getsizeof(beta_encoding)
+    #     series_memory = sys.getsizeof(beta_series)
+    #     total_memory = beta_memory + series_memory
+            
+    #     return elapsed_time, total_memory, beta_series
+
+    # def _fit(self, case, method):
+    #     """
+    #     Generalized fit method for computing parameters using specified method.
+    #     """
+    #     features, label, cols = self._get_case_data(case)
         
+    #     # print(f"This is a {method} summary for {case.capitalize()} case!")
+
+    #     # Start time measurement
+    #     start_time = time.time()
+
+    #     if method == 'numpy':
+    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         beta_encoding = inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         self.model = sm.OLS(label, X_constant).fit()
+    #         beta_encoding = self.model.params.values
+    #     elif method == 'scikit-learn':
+    #         # Remove intercept column for sklearn
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+
+    #         # Create a dictionary to store models
+    #         self.models = {} 
+            
+    #         self.models["Ridge"] = Ridge(alpha=ridge_alpha, fit_intercept=True).fit(X, label)
+    #         self.coefficients["Ridge"] = np.insert(self.models["Ridge"].coef_, 0, self.models["Ridge"].intercept_)
+
+    #         self.models["Lasso"] = Lasso(alpha=lasso_alpha, fit_intercept=True).fit(X, label)
+    #         self.coefficients["Lasso"] = np.insert(self.models["Lasso"].coef_, 0, self.models["Lasso"].intercept_)
+            
+    #         self.models["scii-kit learn"] = LinearRegression(fit_intercept=True).fit(X, label)
+    #         self.coefficients["scii-kit learn"] = np.insert(self.models["scii-kit learn"].coef_, 0, self.models["scii-kit learn"].intercept_)
+
+    #         beta_encoding = self.models
+    #     else:
+    #         raise ValueError("Method must be {method}.")
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+
+    #     # Measure elapsed time
+    #     elapsed_time = time.time() - start_time
+
+    #     # Measure memory usage
+    #     beta_memory = sys.getsizeof(beta_encoding)
+    #     series_memory = sys.getsizeof(beta_series)
+    #     total_memory = beta_memory + series_memory
+            
+    #     return elapsed_time, total_memory, beta_series   
+
     # Wrapper for NumPy
     def fit_numpy(self, case):
         return self._fit(case=case, method='numpy')
@@ -310,224 +509,185 @@ class LinearRegression:
     def fit_statsmodels(self, case):
         return self._fit(case=case, method='statsmodels')
 
-    def gradient_descent(self, case, learning_rate, epochs, precision):
-        """
-        Perform gradient descent optimization with dimension checking
-        """       
-        if case == 'yes':
-            features = self.features_yes
-            label = self.label
-            cols = self.cols_yes
-        elif case == 'no':
-            features = self.features_no
-            label = self.label
-            cols = self.cols_no
+    def fit_sklearn(self, case):
+        return self._fit(case=case, method='scikit-learn')
 
-        # Split the data without the intercept column
-        X_train, X_test, y_train, y_test = train_test_split(features, label, test_size=0.2, random_state=10)
-        
-        scaling = input('Do you want to scale (normalization, standardization, or no)?')
-        start_time = time.time()
-        
-        # Handle scaling
-        if scaling.lower() == 'normalization':
-            scaler = MinMaxScaler()
-        elif scaling.lower() == 'standardization':
-            scaler = StandardScaler()
-        elif scaling.lower() == 'no':
-            scaler = None
-        else:
-            print('Sorry, that is not a valid response.')
-            return None, None, None
-        
-        # Scale features if requested
-        if scaler:
-            X_train = scaler.fit_transform(X_train)
-            X_test = scaler.transform(X_test)
-                
-        # Initialize parameters
-        beta = np.zeros(len(cols))
-        guesses = []
-        losses = []
-        
-        # Gradient descent iterations
-        for epoch in range(epochs):
-            predictions = X_train @ beta
-            residuals = predictions - y_train
-            gradient = (2 / len(y_train)) * X_train.T @ residuals
-            
-            beta = beta - learning_rate * gradient
-            
-            guesses.append(beta.copy())
-            loss = np.mean(residuals ** 2)
-            losses.append(loss)
-            
-            if np.max(np.abs(gradient)) < precision:
-                break
-        
-        elapsed_time = time.time() - start_time
-        beta_series = pd.Series(data=beta, index=cols)
-        
-        # print(f"Gradient Descent ({key}):")
-        print(f"Computed beta coefficients in {elapsed_time:.6f} seconds")
-        print(f'Memory usage for Pandas Series: {sys.getsizeof(beta_series)} bytes')
-        print(beta_series)
-        print("\n")
-        
-        return beta_series, guesses, losses
-#     def gradient_descent(self, features, key, cols, learning_rate=0.000001, epochs=100, precision=0.00001):
+    def fit_ridge(self, case=None):
+        return self._fit(case=case, method='ridge', ridge_alpha=ridge_alpha)
+
+    def fit_lasso(self, case, lasso=None):
+        return self._fit(case=case, method='lasso', lasso_alpha=lasso_alpha)
+
+
+#     def gradient_descent(self, case, learning_rate, epochs, precision):
 #         """
 #         Perform gradient descent optimization with dimension checking
-#         """
-#         try:
-#             # Ensure features and cols match in dimension
-#             if self.debug:
-#                 print(f"Features shape: {features.shape}")
-#                 print(f"Number of columns: {len(cols)}")
-#                 print(f"Columns: {cols}")
-            
-#             # Split the data without the intercept column
-#             X = features[:, 1:] if features.shape[1] == len(cols) else features
-#             X_train, X_test, y_train, y_test = train_test_split(X, self.label, test_size=0.2, random_state=10)
-            
-#             scaling = input('Do you want to scale (normalization, standardization, or no)?')
-#             start_time = time.time()
-            
-#             # Handle scaling
-#             if scaling.lower() == 'normalization':
-#                 scaler = MinMaxScaler()
-#             elif scaling.lower() == 'standardization':
-#                 scaler = StandardScaler()
-#             elif scaling.lower() == 'no':
-#                 scaler = None
-#             else:
-#                 print('Sorry, that is not a valid response.')
-#                 return None, None, None
-            
-#             # Scale features if requested
-#             if scaler:
-#                 X_train_scaled = scaler.fit_transform(X_train)
-#                 X_test_scaled = scaler.transform(X_test)
-#                 X_train_augmented = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
-#                 X_test_augmented = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
-#             else:
-#                 X_train_augmented = np.hstack((np.ones((X_train.shape[0], 1)), X_train))
-#                 X_test_augmented = np.hstack((np.ones((X_test.shape[0], 1)), X_test))
-            
-#             # Verify dimensions
-#             if self.debug:
-#                 print(f"X_train_augmented shape: {X_train_augmented.shape}")
-#                 print(f"Number of coefficients to estimate: {len(cols)}")
-            
-#             # Initialize parameters
-#             beta = np.zeros(len(cols))
-#             guesses = []
-#             losses = []
-            
-#             # Gradient descent iterations
-#             for epoch in range(epochs):
-#                 predictions = X_train_augmented @ beta
-#                 residuals = predictions - y_train
-#                 gradient = (2 / len(y_train)) * X_train_augmented.T @ residuals
-                
-#                 beta = beta - learning_rate * gradient
-                
-#                 guesses.append(beta.copy())
-#                 loss = np.mean(residuals ** 2)
-#                 losses.append(loss)
-                
-#                 if np.max(np.abs(gradient)) < precision:
-#                     break
-            
-#             elapsed_time = time.time() - start_time
-#             beta_series = pd.Series(data=beta, index=cols)
-            
-#             print(f"Gradient Descent ({key}):")
-#             print(f"Computed beta coefficients in {elapsed_time:.6f} seconds")
-#             print(f'Memory usage for Pandas Series: {sys.getsizeof(beta_series)} bytes')
-#             print(beta_series)
-#             print("\n")
-            
-#             return beta_series, guesses, losses
-            
-#         except Exception as e:
-#             print(f"Error in gradient_descent: {str(e)}")
-#             print(f"Traceback: {traceback.format_exc()}")
-#             raise
+#         """       
+#         if case == 'yes':
+#             features = self.features_yes
+#             label = self.label
+#             cols = self.cols_yes
+#         elif case == 'no':
+#             features = self.features_no
+#             label = self.label
+#             cols = self.cols_no
 
-    def train_sklearn_models(self, case, ridge_alpha, lasso_alpha):
-        """Train multiple sklearn models with error handling"""
-        try:
-            results = {}
-            
-            # Remove intercept column for sklearn
-            X = features[:, 1:] if features.shape[1] == len(cols) else features
-            
-            models = {
-                'Scikit-Learn OLS': linear_model.LinearRegression(fit_intercept=True),
-                'Ridge': linear_model.Ridge(alpha=ridge_alpha, fit_intercept=True),
-                'Lasso': linear_model.Lasso(alpha=lasso_alpha, fit_intercept=True)
-            }
-            
-            for name, model in models.items():
-                start_time = time.time()
-                model.fit(X, self.label)
+#         # Split the data without the intercept column
+#         X_train, X_test, y_train, y_test = train_test_split(features, label, test_size=0.2, random_state=10)
+        
+#         scaling = input('Do you want to scale (normalization, standardization, or no)?')
+#         start_time = time.time()
+        
+#         # Handle scaling
+#         if scaling.lower() == 'normalization':
+#             scaler = MinMaxScaler()
+#         elif scaling.lower() == 'standardization':
+#             scaler = StandardScaler()
+#         elif scaling.lower() == 'no':
+#             scaler = None
+#         else:
+#             print('Sorry, that is not a valid response.')
+#             return None, None, None
+        
+#         # Scale features if requested
+#         if scaler:
+#             X_train = scaler.fit_transform(X_train)
+#             X_test = scaler.transform(X_test)
                 
-                # Get coefficients including intercept
-                coefficients = np.insert(model.coef_, 0, model.intercept_)
-                beta_series = pd.Series(data=coefficients, index=cols)
-                
-                # Calculate metrics
-                y_pred = model.predict(X)
-                r2 = model.score(X, self.label)
-                mse = np.mean((self.label - y_pred) ** 2)
-                
-                elapsed_time = time.time() - start_time
-                
-                results[name] = {
-                    'Coefficients': beta_series,
-                    'R-squared': r2,
-                    'MSE': mse,
-                    'Elapsed_time': elapsed_time
-                }
-                
-                print(f"\n{name} ({key}):")
-                print(f"R-squared: {r2:.4f}")
-                print(f"MSE: {mse:.4f}")
-                print(f"Elapsed time: {elapsed_time:.6f} seconds")
-                print("Coefficients:")
-                print(beta_series)
+#         # Initialize parameters
+#         beta = np.zeros(len(cols))
+#         guesses = []
+#         losses = []
+        
+#         # Gradient descent iterations
+#         for epoch in range(epochs):
+#             predictions = X_train @ beta
+#             residuals = predictions - y_train
+#             gradient = (2 / len(y_train)) * X_train.T @ residuals
             
-            return results
+#             beta = beta - learning_rate * gradient
             
-        except Exception as e:
-            print(f"Error in train_sklearn_models: {str(e)}")
-            print(f"Traceback: {traceback.format_exc()}")
+#             guesses.append(beta.copy())
+#             loss = np.mean(residuals ** 2)
+#             losses.append(loss)
+            
+#             if np.max(np.abs(gradient)) < precision:
+#                 break
+        
+#         elapsed_time = time.time() - start_time
+#         beta_series = pd.Series(data=beta, index=cols)
+        
+#         # print(f"Gradient Descent ({key}):")
+#         print(f"Computed beta coefficients in {elapsed_time:.6f} seconds")
+#         print(f'Memory usage for Pandas Series: {sys.getsizeof(beta_series)} bytes')
+#         print(beta_series)
+#         print("\n")
+        
+#         return beta_series, guesses, losses
+# #     def gradient_descent(self, features, key, cols, learning_rate=0.000001, epochs=100, precision=0.00001):
+# #         """
+# #         Perform gradient descent optimization with dimension checking
+# #         """
+# #         try:
+# #             # Ensure features and cols match in dimension
+# #             if self.debug:
+# #                 print(f"Features shape: {features.shape}")
+# #                 print(f"Number of columns: {len(cols)}")
+# #                 print(f"Columns: {cols}")
+            
+# #             # Split the data without the intercept column
+# #             X = features[:, 1:] if features.shape[1] == len(cols) else features
+# #             X_train, X_test, y_train, y_test = train_test_split(X, self.label, test_size=0.2, random_state=10)
+            
+# #             scaling = input('Do you want to scale (normalization, standardization, or no)?')
+# #             start_time = time.time()
+            
+# #             # Handle scaling
+# #             if scaling.lower() == 'normalization':
+# #                 scaler = MinMaxScaler()
+# #             elif scaling.lower() == 'standardization':
+# #                 scaler = StandardScaler()
+# #             elif scaling.lower() == 'no':
+# #                 scaler = None
+# #             else:
+# #                 print('Sorry, that is not a valid response.')
+# #                 return None, None, None
+            
+# #             # Scale features if requested
+# #             if scaler:
+# #                 X_train_scaled = scaler.fit_transform(X_train)
+# #                 X_test_scaled = scaler.transform(X_test)
+# #                 X_train_augmented = np.hstack((np.ones((X_train_scaled.shape[0], 1)), X_train_scaled))
+# #                 X_test_augmented = np.hstack((np.ones((X_test_scaled.shape[0], 1)), X_test_scaled))
+# #             else:
+# #                 X_train_augmented = np.hstack((np.ones((X_train.shape[0], 1)), X_train))
+# #                 X_test_augmented = np.hstack((np.ones((X_test.shape[0], 1)), X_test))
+            
+# #             # Verify dimensions
+# #             if self.debug:
+# #                 print(f"X_train_augmented shape: {X_train_augmented.shape}")
+# #                 print(f"Number of coefficients to estimate: {len(cols)}")
+            
+# #             # Initialize parameters
+# #             beta = np.zeros(len(cols))
+# #             guesses = []
+# #             losses = []
+            
+# #             # Gradient descent iterations
+# #             for epoch in range(epochs):
+# #                 predictions = X_train_augmented @ beta
+# #                 residuals = predictions - y_train
+# #                 gradient = (2 / len(y_train)) * X_train_augmented.T @ residuals
+                
+# #                 beta = beta - learning_rate * gradient
+                
+# #                 guesses.append(beta.copy())
+# #                 loss = np.mean(residuals ** 2)
+# #                 losses.append(loss)
+                
+# #                 if np.max(np.abs(gradient)) < precision:
+# #                     break
+            
+# #             elapsed_time = time.time() - start_time
+# #             beta_series = pd.Series(data=beta, index=cols)
+            
+# #             print(f"Gradient Descent ({key}):")
+# #             print(f"Computed beta coefficients in {elapsed_time:.6f} seconds")
+# #             print(f'Memory usage for Pandas Series: {sys.getsizeof(beta_series)} bytes')
+# #             print(beta_series)
+# #             print("\n")
+            
+# #             return beta_series, guesses, losses
+            
+# #         except Exception as e:
+# #             print(f"Error in gradient_descent: {str(e)}")
+# #             print(f"Traceback: {traceback.format_exc()}")
+# #             raise
 
-#     def train_sklearn_models(self, features, key, cols, ridge_alpha=1.0, lasso_alpha=1.0):
-#         """Train multiple sklearn models with error handling"""
-#         try:
-#             results = {}
+# #     def train_sklearn_models(self, features, key, cols, ridge_alpha=1.0, lasso_alpha=1.0):
+# #         """Train multiple sklearn models with error handling"""
+# #         try:
+# #             results = {}
             
-#             # Remove intercept column for sklearn
-#             X = features[:, 1:] if features.shape[1] == len(cols) else features
+# #             # Remove intercept column for sklearn
+# #             X = features[:, 1:] if features.shape[1] == len(cols) else features
             
-#             models = {
-#                 'Scikit-Learn OLS': linear_model.LinearRegression(fit_intercept=True),
-#                 'Ridge': linear_model.Ridge(alpha=ridge_alpha, fit_intercept=True),
-#                 'Lasso': linear_model.Lasso(alpha=lasso_alpha, fit_intercept=True)
-#             }
+# #             models = {
+# #                 'Scikit-Learn OLS': linear_model.LinearRegression(fit_intercept=True),
+# #                 'Ridge': linear_model.Ridge(alpha=ridge_alpha, fit_intercept=True),
+# #                 'Lasso': linear_model.Lasso(alpha=lasso_alpha, fit_intercept=True)
+# #             }
             
-#             for name, model in models.items():
-#                 start_time = time.time()
-#                 model.fit(X, self.label)
+# #             for name, model in models.items():
+# #                 start_time = time.time()
+# #                 model.fit(X, self.label)
                 
-#                 # Get coefficients including intercept
-#                 coefficients = np.insert(model.coef_, 0, model.intercept_)
-#                 beta_series = pd.Series(data=coefficients, index=cols)
+# #                 # Get coefficients including intercept
+# #                 coefficients = np.insert(model.coef_, 0, model.intercept_)
+# #                 beta_series = pd.Series(data=coefficients, index=cols)
                 
-#                 # Calculate metrics
-#                 y_pred = model.predict(X)
+# #                 # Calculate metrics
+# #                 y_pred = model.predict(X)
 #                 r2 = model.score(X, self.label)
 #                 mse = np.mean((self.label - y_pred) ** 2)
                 
