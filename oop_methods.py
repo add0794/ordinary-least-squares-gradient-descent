@@ -183,6 +183,18 @@ class Visualizer:
         plt.title("Correlation Matrix")
         plt.show()
 
+    @staticmethod
+    def plot_target_distribution(data, target_column):
+        """
+        Plot the distribution of the target variable.
+        """
+        plt.figure(figsize=(8, 6))
+        sns.histplot(x=f'{target_column}', data=data, kde=True, bins=15, color='green', alpha=0.7)
+        plt.title(f"Distribution of Target Variable: {target_column}")
+        plt.xlabel(target_column)
+        plt.ylabel("Frequency")
+        plt.show()
+
     # @staticmethod
     # def plot_histograms(data, columns=None):
     #     """
@@ -221,18 +233,6 @@ class Visualizer:
     #     plt.title("Box Plots of Numeric Features")
     #     plt.xticks(rotation=45)
     #     plt.show()
-
-    @staticmethod
-    def plot_target_distribution(data, target_column):
-        """
-        Plot the distribution of the target variable.
-        """
-        plt.figure(figsize=(8, 6))
-        sns.histplot(x=f'{target_column}', data=data, kde=True, bins=15, color='green', alpha=0.7)
-        plt.title(f"Distribution of Target Variable: {target_column}")
-        plt.xlabel(target_column)
-        plt.ylabel("Frequency")
-        plt.show()
 
 class CustomLinearRegression:
     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
