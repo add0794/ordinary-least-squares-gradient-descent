@@ -1,12 +1,600 @@
+import kagglehub
+import matplotlib.pyplot as plt
 import numpy as np 
+import os
 import pandas as pd 
 from scipy.linalg import inv
+import seaborn as sns
 from sklearn import linear_model
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import statsmodels.api as sm
 import sys
 import time
+class DataLoader:
+    def __init__(self, target_column, categorical_columns=None):
+        """
+        Initialize the DataLoader with column specifications.
+        
+        :param target_column: The name of the target variable
+        :param categorical_columns: List of categorical column names for one-hot encoding (optional)
+        """
+        # Column specifications
+        self.target_column = target_column
+        self.categorical_columns = categorical_columns if categorical_columns else []
+        
+        # Data containers
+        self.raw_data = pd.DataFrame()
+        self.processed_data = pd.DataFrame()
+        self.target_data = pd.Series(dtype=float)
+        self.feature_columns = []
+
+    def load_data(self, kaggle, file):
+        """Load and preprocess data with improved error handling."""
+        try:
+            print(f"Downloading dataset: {kaggle}...")
+            path = kagglehub.dataset_download(kaggle)
+
+            if path is None:  # Check if download was successful
+                raise ValueError(f"Failed to download dataset from {kaggle}. Check Kaggle credentials and dataset name.")
+
+            dataset_path = os.path.join(path, file)
+            print(f"Dataset downloaded to: {dataset_path}")
+
+            if not os.path.exists(dataset_path):  # Check if file exists
+                raise FileNotFoundError(f"File '{file}' not found in downloaded dataset at {path}.")
+
+
+            print("Loading dataset into memory...")
+            self.raw_data = pd.read_csv(dataset_path)
+            print(f"Initial dataset shape: {self.raw_data.shape}")
+
+            self._preprocess_data()
+            return self # Return self to allow method chaining
+
+        except (ValueError, FileNotFoundError, OSError, pd.errors.ParserError, Exception) as e:  # Catch potential errors
+            print(f"Error loading data: {e}")
+            return None  # Explicitly return None in case of errors
+
+    def _preprocess_data(self):
+        """
+        Perform preprocessing, such as removing nulls, duplicates, and encoding categorical variables.
+        """
+        # Drop nulls and duplicates
+        self.raw_data.dropna(inplace=True)
+        self.raw_data.drop_duplicates(inplace=True)
+        
+        # Copy raw data to processed data
+        self.processed_data = self.raw_data.copy()
+        
+        # Extract target variable first
+        self.target_data = self.processed_data.pop(self.target_column)
+        
+        # Perform dummy coding if categorical columns exist
+        if self.categorical_columns:
+            self._dummy_coding()
+        
+        # Update feature columns
+        self.feature_columns = self.processed_data.columns.tolist()
+
+    def _dummy_coding(self):
+        """
+        Perform one-hot encoding on categorical columns if specified.
+        Updates processed_data and feature_columns.
+        """
+        if not len(self.raw_data):
+            return
+            
+        if self.categorical_columns:
+            self.processed_data = pd.get_dummies(
+                self.raw_data.drop(columns=[self.target_column]), 
+                columns=self.categorical_columns, 
+                dtype=int
+            )
+        else:
+            self.processed_data = self.raw_data.drop(columns=[self.target_column]).copy()
+            
+        self.feature_columns = self.processed_data.columns.tolist()
+        self.target_data = self.raw_data[self.target_column]
+
+    def create_yes_no_datasets(self, base_column_name):
+        """
+        Creates "Yes" and "No" DataFrames, dropping the opposite dummy column.
+
+        Args:
+            base_column_name: The base name of the categorical variable.
+
+        Returns:
+            A dictionary with 'Yes' and 'No' DataFrames, or None on error.
+        """
+        try:
+            dummy_cols = [col for col in self.processed_data.columns if col.startswith(base_column_name + "_")]
+            if not dummy_cols:
+                raise KeyError(f"No dummy columns found for base name: {base_column_name}")
+
+            yes_col = [col for col in dummy_cols if col.endswith("_Yes") or col.endswith("_yes")][0]
+            no_col = [col for col in dummy_cols if col.endswith("_No") or col.endswith("_no")][0]
+            
+            # Create DataFrames and drop the opposite column
+            yes_df = self.processed_data.drop(columns=no_col).copy()
+            no_df = self.processed_data.drop(columns=yes_col).copy()
+
+            return {'Yes': yes_df, 'No': no_df}
+
+        except KeyError as e:
+            print(f"KeyError: {e}")
+            return None
+        except IndexError as e:
+            print(f"IndexError: {e}. Ensure that the categories Yes and No exist")
+            return None
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return None
+
+    def create_yes_no_datasets_with_intercept(self, base_column_name):
+        """
+        Creates "Yes" and "No" DataFrames with intercept and returns them as numpy arrays.
+
+        Args:
+            base_column_name: The base name of the categorical variable.
+
+        Returns:
+            A dictionary with keys 'Yes' and 'No', each containing a dictionary with 'X' (NumPy array with intercept) and 'columns' (list of column names).
+            Returns None if there is an error
+        """
+        try:
+            dummy_cols = [col for col in self.processed_data.columns if col.startswith(base_column_name + "_")]
+            if not dummy_cols:
+                raise KeyError(f"No dummy columns found for base name: {base_column_name}")
+
+            yes_col = [col for col in dummy_cols if col.endswith("_Yes") or col.endswith("_yes")][0]
+            no_col = [col for col in dummy_cols if col.endswith("_No") or col.endswith("_no")][0]
+            
+            # Create DataFrames and drop the opposite column
+            yes_df = self.processed_data.drop(columns=no_col).copy()
+            no_df = self.processed_data.drop(columns=yes_col).copy()
+
+            X_with_intercept_yes = np.column_stack([np.ones(len(yes_df)), yes_df])
+            cols_yes = ['Intercept'] + yes_df.columns.tolist()
+
+            X_with_intercept_no = np.column_stack([np.ones(len(no_df)), no_df])
+            cols_no = ['Intercept'] + no_df.columns.tolist()
+
+            return {'Yes': {'X': X_with_intercept_yes, 'columns': cols_yes},
+                    'No': {'X': X_with_intercept_no, 'columns': cols_no}}
+
+        except KeyError as e:
+            print(f"KeyError: {e}")
+            return None
+        except IndexError as e:
+            print(f"IndexError: {e}. Ensure that the categories Yes and No exist")
+            return None
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return None
+
+    # def create_yes_no_datasets_from_split(self, split_dataframes, base_column_name):
+    #     try:
+    #         yes_key = [key for key in split_dataframes if key.endswith("_Yes") or key.endswith("_yes")][0]
+    #         no_key = [key for key in split_dataframes if key.endswith("_No") or key.endswith("_no")][0]
+    #         yes_df = split_dataframes[yes_key]
+    #         no_df = split_dataframes[no_key]
+    #         return {'Yes': yes_df, 'No': no_df}
+
+    #     except IndexError as e:
+    #         print("Could not find the yes or no key")
+    #         return None
+    #     except Exception as e:
+    #         print(f"An unexpected error occurred: {e}")
+    #         return None
+
+    # def create_yes_no_datasets(self, split_column):
+    #     """
+    #     Creates "Yes" and "No" DataFrames based on a dummy-coded column,
+    #     retaining all other dummy-coded columns in both.
+
+    #     Args:
+    #         split_column: The name of the dummy-coded column to split on.
+
+    #     Returns:
+    #         A dictionary with keys 'Yes' and 'No', each containing a dictionary with 'X' (NumPy array with intercept) and 'columns' (list of column names).
+    #         Returns None if there is an error
+    #     """
+    #     if split_column not in self.feature_columns:
+    #         print(f"Error: Column '{split_column}' not found in feature columns.")
+    #         return None
+
+    #     try:
+    #         # Create "Yes" DataFrame (where the split column is 1)
+    #         yes_df = self.processed_data[self.processed_data[split_column] == 1].copy()
+    #         X_with_intercept_yes = np.column_stack([np.ones(len(yes_df)), yes_df])
+    #         cols_yes = ['Intercept'] + yes_df.columns.tolist()
+
+    #         # Create "No" DataFrame (where the split column is 0)
+    #         no_df = self.processed_data[self.processed_data[split_column] == 0].copy()
+    #         X_with_intercept_no = np.column_stack([np.ones(len(no_df)), no_df])
+    #         cols_no = ['Intercept'] + no_df.columns.tolist()
+
+    #         return {'Yes': {'X': X_with_intercept_yes, 'columns': cols_yes},
+    #                 'No': {'X': X_with_intercept_no, 'columns': cols_no}}
+
+    #     except KeyError as e:
+    #         print(f"KeyError: {e}")
+    #         return None
+    #     except Exception as e:
+    #         print(f"An unexpected error occurred: {e}")
+    #         return None
+
+    # def create_split_dataframes(self, split_column):
+    #     """
+    #     Creates "Yes" and "No" datasets based on a split column.
+
+    #     Args:
+    #         split_column: The name of the categorical column to split on.
+
+    #     Returns:
+    #         A dictionary with keys 'Yes' and 'No', each containing a dictionary with 'X' (NumPy array with intercept) and 'columns' (list of column names).
+    #         Returns None if there is an error
+    #     """
+    #     if split_column not in self.feature_columns:
+    #         print(f"Error: Column '{split_column}' not found in feature columns.")
+    #         return None
+        
+    #     try:
+    #         # Create "Yes" dataset (where the split column is present)
+    #         X_yes = self.processed_data.drop(columns=[col for col in self.processed_data.columns if col.startswith(split_column) and col != split_column], errors='ignore') #Drop all other dummy columns
+    #         X_with_intercept_yes = np.column_stack([np.ones(len(X_yes)), X_yes])
+    #         cols_yes = ['Intercept'] + X_yes.columns.tolist()
+
+    #         # Create "No" dataset (where the split column is absent)
+    #         X_no = self.processed_data.drop(columns=[split_column])
+    #         X_with_intercept_no = np.column_stack([np.ones(len(X_no)), X_no])
+    #         cols_no = ['Intercept'] + X_no.columns.tolist()
+
+    #         return {'Yes': {'X': X_with_intercept_yes, 'columns': cols_yes},
+    #                 'No': {'X': X_with_intercept_no, 'columns': cols_no}}
+    #     except KeyError as e:
+    #         print(f"KeyError: {e}")
+    #         return None
+    #     except Exception as e:
+    #         print(f"An unexpected error occurred: {e}")
+    #         return None
+
+
+    # def create_split_dataframes(self, split_columns):
+    #     """
+    #     Creates new DataFrames based on specified columns.
+
+    #     Args:
+    #         split_columns: A list of column names to split on.
+
+    #     Returns:
+    #         A dictionary where keys are the column names and values are dictionaries
+    #         containing two DataFrames:
+    #         - 'non_zero': DataFrame where the column has a non-zero value.
+    #         - 'zero': DataFrame where the column has a zero value.
+    #         Returns None if there is an error
+    #     """
+
+    #     if not isinstance(split_columns, list):
+    #         print("Error: split_columns must be a list.")
+    #         return None
+
+    #     for split_column in split_columns:
+    #         if split_column not in self.feature_columns:
+    #             print(f"Error: Column '{split_column}' not found in feature columns.")
+    #             return None
+
+    #     try:
+    #         split_dataframes = {}
+    #         for split_column in split_columns:
+    #             non_zero_df = self.processed_data[self.processed_data[split_column] != 0].copy()
+    #             zero_df = self.processed_data[self.processed_data[split_column] == 0].copy()
+
+    #             split_dataframes[split_column] = {'non_zero': non_zero_df, 'zero': zero_df}
+
+    #         return split_dataframes
+
+    #     except KeyError:
+    #         print(f"KeyError: A column was not found")
+    #         return None
+    #     except Exception as e:
+    #         print(f"An unexpected error occurred: {e}")
+    #         return None
+
+    # def split_data(self, split_columns):
+    #     """
+    #     Splits the data based on multiple columns, keeping all rows in each split.
+
+    #     Args:
+    #         split_columns: A list of column names to split on.
+
+    #     Returns:
+    #         A dictionary where keys are the column names and values are tuples
+    #         containing:
+    #         - A NumPy array with intercept for rows where that column has a non-zero value.
+    #         - A NumPy array with intercept for rows where that column has a zero value.
+    #         Returns None if there is an error
+    #     """
+
+    #     if not isinstance(split_columns, list):
+    #         print("Error: split_columns must be a list.")
+    #         return None
+
+    #     for split_column in split_columns:
+    #         if split_column not in self.feature_columns:
+    #             print(f"Error: Column '{split_column}' not found in feature columns.")
+    #             return None
+
+    #         if not self.feature_columns[split_column]:
+    #             print(f"Error: Column '{split_column}' is not marked as a feature.")
+    #             return None
+        
+    #     try:
+    #         split_data_dict = {}
+    #         for split_column in split_columns:
+    #             data_split = self.processed_data[self.processed_data[split_column] != 0] #Non zero values
+    #             data_complement = self.processed_data[self.processed_data[split_column] == 0] #Zero Values
+
+    #             X_with_intercept_split = np.column_stack([np.ones(len(data_split)), data_split])
+    #             X_with_intercept_complement = np.column_stack([np.ones(len(data_complement)), data_complement])
+
+    #             split_data_dict[split_column] = (X_with_intercept_split, X_with_intercept_complement)
+
+    #         return split_data_dict
+
+    #     except KeyError:
+    #         print(f"KeyError: A column was not found")
+    #         return None
+    #     except Exception as e:
+    #         print(f"An unexpected error occurred: {e}")
+    #         return None
+
+    # def split_data(self, split_column, drop_complement=True):
+    #     if self.feature_columns[split_column]:
+    #         np.column_stack([np.ones(len(X_extracurricular_yes)), self.processed_data])
+
+# X_extracurricular_yes = updated_data.drop(['Performance Index', 'Extracurricular Activities_No'], axis=1)
+# X_with_intercept_yes = np.column_stack([np.ones(len(X_extracurricular_yes)), X_extracurricular_yes])
+# cols_yes = ['Intercept'] + X_extracurricular_yes.columns.tolist()
+
+# X_extracurricular_no = updated_data.drop(['Performance Index', 'Extracurricular Activities_Yes'], axis=1)
+# X_with_intercept_no = np.column_stack([np.ones(len(X_extracurricular_no)), X_extracurricular_no])
+# cols_no = ['Intercept'] + X_extracurricular_no.columns.tolist()
+        # """
+        # Split the feature data based on a binary categorical column into two sets.
+        
+        # :param split_column: Name of the binary categorical column to split on (e.g., 'Extracurricular Activities')
+        # :param drop_complement: Whether to drop the complementary column for each split (default: True)
+        # :return: Dictionary containing feature matrices and column names for each category
+        # """
+        # # Verify the split column exists in categorical columns
+        # if split_column not in self.categorical_columns:
+        #     raise ValueError(f"{split_column} must be in categorical_columns and encoded")
+        
+        # # # Get the encoded column names for the split variable
+        # split_cols = [col for col in self.feature_columns if col.startswith(f"{split_column}_")]
+        # # if len(split_cols) != 2:
+        # #     raise ValueError(f"{split_column} must be binary (exactly two categories after encoding)")
+        
+        # result = {}
+        
+        # # Process each category
+        # for category_col in split_cols:
+        #     # Get the rows where this category is True (1)
+        #     category_mask = self.processed_data[category_col]
+            
+        #     # # Create feature matrix for this category
+        #     X_category = self.processed_data[category_mask].copy()
+            
+        #     # # Drop the complement column if requested
+        #     if drop_complement:
+        #     #     # Find the other category column
+        #         other_category = [col for col in split_cols if col != category_col][0]
+        #         X_category = X_category.drop(columns=[other_category])
+            
+        #     # Add intercept column
+        #     X_with_intercept = np.column_stack([
+        #         np.ones(len(X_category)),
+        #         X_category
+        #     ])
+            
+        #     # Create column names list with intercept
+        #     cols = ['Intercept'] + X_category.columns.tolist()
+            
+        #     # Store results for this category
+        #     category_name = category_col.split('_')[-1]  # Extract category name (e.g., 'Yes' from 'Extracurricular Activities_Yes')
+        #     result[category_name] = {
+        #         'X': X_with_intercept,
+        #         'columns': cols
+        #     }
+        
+        # return result
+
+    # def split_data(self, split_column):
+    #     """
+    #     Splits the data based on a dummy-coded column, creating separate DataFrames
+    #     with 0s and 1s for each dummy column.
+
+    #     Args:
+    #         split_column: The name of the dummy-coded column to split on.
+
+    #     Returns:
+    #         A dictionary where keys are the dummy column names and values are tuples
+    #         containing:
+    #         - A NumPy array with intercept for rows where that dummy column is 1.
+    #         - A NumPy array with intercept for rows where that dummy column is 0.
+    #         Returns None if there is an error
+    #     """
+
+    #     if split_column not in self.feature_columns:
+    #         print(f"Error: Column '{split_column}' not found in feature columns.")
+    #         return None
+
+    #     if not self.feature_columns[split_column]:
+    #         print(f"Error: Column '{split_column}' is not marked as a feature.")
+    #         return None
+
+    #     try:
+    #         dummy_cols = [col for col in self.processed_data.columns if col.startswith(split_column)]
+    #         if not dummy_cols:
+    #             print(f"Error: No dummy columns found starting with '{split_column}'.")
+    #             return None
+            
+    #         split_data_dict = {}
+
+    #         for dummy_col in dummy_cols:
+    #             data_split = self.processed_data[self.processed_data[dummy_col] == 1]
+    #             data_complement = self.processed_data[self.processed_data[dummy_col] == 0]
+
+    #             X_with_intercept_split = np.column_stack([np.ones(len(data_split)), data_split])
+    #             X_with_intercept_complement = np.column_stack([np.ones(len(data_complement)), data_complement])
+
+    #             split_data_dict[dummy_col] = (X_with_intercept_split, X_with_intercept_complement)
+
+    #         return split_data_dict
+
+    #     except KeyError:
+    #         print(f"KeyError: A column was not found")
+    #         return None
+    #     except Exception as e:
+    #         print(f"An unexpected error occurred: {e}")
+    #         return None
+
+    # def split_data(self, split_column, drop_complement=True):
+    #     """
+    #     Split the data based on a binary categorical column into two sets.
+        
+    #     :param split_column: Name of the binary categorical column to split on (e.g., 'Extracurricular Activities')
+    #     :param drop_complement: Whether to drop the complementary column for each split (default: True)
+    #     :return: Dictionary containing feature matrices and column names for each category
+    #     """
+    #     # Verify the split column exists in categorical columns
+    #     if split_column not in self.categorical_columns:
+    #         raise ValueError(f"{split_column} must be in categorical_columns and encoded")
+        
+    #     # Get the encoded column names for the split variable
+    #     split_cols = [col for col in self.feature_columns if col.startswith(f"{split_column}_")]
+    #     if len(split_cols) != 2:
+    #         raise ValueError(f"{split_column} must be binary (exactly two categories after encoding)")
+        
+    #     result = {}
+        
+    #     # Process each category
+    #     for category_col in split_cols:
+    #         # Get the rows where this category is True (1)
+    #         category_mask = self.processed_data[category_col] == 1
+            
+    #         # Create feature matrix for this category
+    #         X_category = self.processed_data[category_mask].copy()
+            
+    #         # Drop the complement column if requested
+    #         if drop_complement:
+    #             # Find the other category column
+    #             other_category = [col for col in split_cols if col != category_col][0]
+    #             X_category = X_category.drop(columns=[other_category])
+            
+    #         # Add intercept column
+    #         X_with_intercept = np.column_stack([
+    #             np.ones(len(X_category)),
+    #             X_category
+    #         ])
+            
+    #         # Create column names list with intercept
+    #         cols = ['Intercept'] + X_category.columns.tolist()
+            
+    #         # Get corresponding target values
+    #         y_category = self.target_data[category_mask]
+            
+    #         # Store results for this category
+    #         category_name = category_col.split('_')[-1]  # Extract category name (e.g., 'Yes' from 'Extracurricular Activities_Yes')
+    #         result[category_name] = {
+    #             'X': X_with_intercept,
+    #             'y': y_category,
+    #             'columns': cols
+    #         }
+        
+    #     return result
+        # Initialize feature sets for cases
+        # self._initialize_cases()
+
+    # def _initialize_cases(self):
+    #     """
+    #     Create feature sets for each case based on categorical variables.
+    #     """
+    #     for column in self.categorical_columns:
+    #         one_hot_columns = [col for col in self.processed_data.columns if col.startswith(f"{column}_")]
+            
+    #         for one_hot_col in one_hot_columns:
+    #             X_case = self.processed_data.drop(columns=[col for col in one_hot_columns if col != one_hot_col], errors='ignore')
+    #             X_with_intercept = np.column_stack([np.ones(len(X_case)), X_case])
+    #             cols = ['Intercept'] + X_case.columns.tolist()
+    #             self.feature_sets[one_hot_col] = {'X': X_with_intercept, 'cols': cols}
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+class Visualizer:
+    @staticmethod
+    def plot_correlation_matrix(data):
+        """
+        Plot a correlation matrix of the data.
+        """
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(data.corr(), annot=True, fmt=".2f", cmap='coolwarm')
+        plt.title("Correlation Matrix")
+        plt.show()
+
+    @staticmethod
+    def plot_histograms(data, columns=None):
+        """
+        Plot histograms for specified columns or all numeric columns in the data.
+        """
+        if columns is None:
+            columns = data.select_dtypes(include='number').columns
+        
+        data[columns].hist(figsize=(12, 10), bins=15, color='blue', alpha=0.7)
+        plt.suptitle("Histograms of Numeric Features")
+        plt.show()
+
+    @staticmethod
+    def plot_scatter_matrix(data, columns=None):
+        """
+        Plot a scatter matrix for the specified columns or all numeric columns.
+        """
+        if columns is None:
+            columns = data.select_dtypes(include='number').columns
+        
+        sns.pairplot(data[columns], diag_kind='kde')
+        plt.suptitle("Scatter Matrix", y=1.02)
+        plt.show()
+
+    @staticmethod
+    def plot_box_plots(data, columns=None):
+        """
+        Plot box plots for specified columns or all numeric columns.
+        """
+        if columns is None:
+            columns = data.select_dtypes(include='number').columns
+        
+        data_melted = data.melt(value_vars=columns)
+        plt.figure(figsize=(12, 6))
+        sns.boxplot(x="variable", y="value", data=data_melted)
+        plt.title("Box Plots of Numeric Features")
+        plt.xticks(rotation=45)
+        plt.show()
+
+    @staticmethod
+    def plot_target_distribution(data, target_column):
+        """
+        Plot the distribution of the target variable.
+        """
+        plt.figure(figsize=(8, 6))
+        sns.histplot(data[target_column], kde=True, bins=15, color='green', alpha=0.7)
+        plt.title(f"Distribution of Target Variable: {target_column}")
+        plt.xlabel(target_column)
+        plt.ylabel("Frequency")
+        plt.show()
+
 
 class LinearRegression:
     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
@@ -15,16 +603,6 @@ class LinearRegression:
         self.label = label
         self.cols_yes = cols_yes
         self.cols_no = cols_no
-
-        # Initialize coefficient comparison DataFrames
-        self.comparison_yes = pd.DataFrame()
-        self.comparison_yes.attrs['title'] = 'Comparison of Extracurricular - Yes Activities'
-        
-        self.comparison_no = pd.DataFrame()
-        self.comparison_no.attrs['title'] = 'Comparison of Extracurricular - No Activities'
-        
-        self.performance_metrics_yes = {}
-        self.performance_metrics_no = {}
 
         # Add debug flag
         self.debug = True
