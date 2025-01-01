@@ -234,7 +234,7 @@ class Visualizer:
         plt.ylabel("Frequency")
         plt.show()
 
-class LinearRegression:
+class CustomLinearRegression:
     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
         self.features_yes = features_yes 
         self.features_no = features_no
@@ -256,68 +256,22 @@ class LinearRegression:
         else:
             raise ValueError("Case must be 'yes' or 'no'")
 
-    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
-    #     """
-    #     Generalized fit method for computing parameters using specified method.
-    #     """
-    #     features, label, cols = self._get_case_data(case) 
-    # # ... rest of your _fit() method ... 
-        
-    #     # print(f"This is a {method} summary for {case.capitalize()} case!")
-
-    #     # Start time measurement
-    #     start_time = time.time()
-
-    #     # Compute beta coefficients based on the chosen method
-    #     if method == 'numpy':
-    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
-    #     elif method == 'scipy':
-    #         beta_encoding = inv(features.T @ features) @ features.T @ label
-    #     elif method == 'statsmodels':
-    #         X_constant = sm.add_constant(features)
-    #         self.model = sm.OLS(label, X_constant).fit()
-    #         beta_encoding = self.model.params.values
-    #     elif method == 'scikit-learn':
-    #         # Remove intercept column for sklearn
-    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
-
-    #         # Create a dictionary to store models
-    #         self.models = {} 
-
-    #         if ridge_alpha is not None:
-    #             self.models["Ridge"] = Ridge(alpha=ridge_alpha, fit_intercept=True).fit(X, label)
-    #             beta_encoding_ridge = np.insert(self.models["Ridge"].coef_, 0, self.models["Ridge"].intercept_) 
-
-    #         if lasso_alpha is not None:
-    #             self.models["Lasso"] = Lasso(alpha=lasso_alpha, fit_intercept=True).fit(X, label)
-    #             beta_encoding_lasso = np.insert(self.models["Lasso"].coef_, 0, self.models["Lasso"].intercept_)
-
-    #         self.models["Linear Regression"] = LinearRegression(fit_intercept=True).fit(X, label)
-    #         beta_encoding_lr = np.insert(self.models["Linear Regression"].coef_, 0, self.models["Linear Regression"].intercept_)
-
-    #         # Determine which coefficients to use
-    #         if ridge_alpha is not None:
-    #             beta_encoding = beta_encoding_ridge
-    #         elif lasso_alpha is not None:
-    #             beta_encoding = beta_encoding_lasso
-    #         else: 
-    #             beta_encoding = beta_encoding_lr
-    #     else:
-    #         raise ValueError("Method must be {method}.")
-        
-    #     beta_series = pd.Series(data=beta_encoding, index=cols)
-
-    #     # Measure elapsed time
-    #     elapsed_time = time.time() - start_time
-
-    #     # Measure memory usage
-    #     beta_memory = sys.getsizeof(beta_encoding)
-    #     series_memory = sys.getsizeof(beta_series)
-    #     total_memory = beta_memory + series_memory
-        
-    #     return elapsed_time, total_memory, beta_series
 
     def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+        """
+        Fits a linear regression model using the specified method.
+
+        Args:
+            case: The case to use ('yes' or 'no').
+            method: The regression method to use ('numpy', 'scipy', 'statsmodels', 
+                    'scikit-learn', 'ridge', or 'lasso').
+            ridge_alpha: The alpha parameter for Ridge regression.
+            lasso_alpha: The alpha parameter for Lasso regression.
+
+        Returns:
+            A tuple containing the elapsed time, total memory usage, 
+            and a pandas Series of the estimated coefficients.
+        """
         features, label, cols = self._get_case_data(case)
         start_time = time.time()
 
@@ -331,7 +285,7 @@ class LinearRegression:
             beta_encoding = self.model.params.values
         elif method == 'scikit-learn':
             X = features[:, 1:] if features.shape[1] == len(cols) else features
-            model = LinearRegression()
+            model = LinearRegression() 
             model.fit(X, label)
             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
         elif method == 'ridge':
@@ -352,150 +306,13 @@ class LinearRegression:
             raise ValueError(f"Method must be numpy, scipy, statsmodels, scikit-learn, ridge, or lasso. Got {method}")
 
         beta_series = pd.Series(data=beta_encoding, index=cols)
+
         elapsed_time = time.time() - start_time
         beta_memory = sys.getsizeof(beta_encoding)
         series_memory = sys.getsizeof(beta_series)
         total_memory = beta_memory + series_memory
-            
+
         return elapsed_time, total_memory, beta_series
-
-    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
-    #     features, label, cols = self._get_case_data(case)
-    #     start_time = time.time()
-
-    #     if method == 'numpy':
-    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
-    #     elif method == 'scipy':
-    #         beta_encoding = inv(features.T @ features) @ features.T @ label
-    #     elif method == 'statsmodels':
-    #         X_constant = sm.add_constant(features)
-    #         self.model = sm.OLS(label, X_constant).fit()
-    #         beta_encoding = self.model.params.values
-    #     elif method == 'scikit-learn':
-    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
-    #         self.models["scikit-learn"] = LinearRegression().fit(X, label)
-    #         self.coefficients["scikit-learn"] = np.insert(self.models["scikit-learn"].coef_, 0, self.models["scikit-learn"].intercept_)
-    #         beta_encoding = self.coefficients["scikit-learn"]
-    #     elif method == 'ridge':            
-    #         if ridge_alpha is not None:
-    #             model = Ridge(alpha=ridge_alpha).fit(X, label)
-    #             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
-    #             self.models["Ridge"] = model
-    #             self.coefficients["Ridge"] = beta_encoding
-    #         else:
-    #             continue
-    #     elif method == 'lasso':
-    #         if lasso_alpha is not None:
-    #             model = Lasso(alpha=lasso_alpha).fit(X, label)
-    #             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
-    #             self.models["Lasso"] = model
-    #             self.coefficients["Lasso"] = beta_encoding
-    #         else:
-    #             continue
-    #     else:
-    #         raise ValueError(f"Method must be numpy, scipy, statsmodels, scikit-learn, ridge, or lasso. Got {method}")
-
-    #     beta_series = pd.Series(data=beta_encoding, index=cols)
-    #     elapsed_time = time.time() - start_time
-    #     beta_memory = sys.getsizeof(beta_encoding)
-    #     series_memory = sys.getsizeof(beta_series)
-    #     total_memory = beta_memory + series_memory
-            
-    #     return elapsed_time, total_memory, beta_series
-
-    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
-    #     """
-    #     Generalized fit method for computing parameters using specified method.
-    #     """
-    #     features, label, cols = self._get_case_data(case)
-    #     start_time = time.time()
-
-    #     if method == 'numpy':
-    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
-    #     elif method == 'scipy':
-    #         beta_encoding = inv(features.T @ features) @ features.T @ label
-    #     elif method == 'statsmodels':
-    #         X_constant = sm.add_constant(features)
-    #         self.model = sm.OLS(label, X_constant).fit()
-    #         beta_encoding = self.model.params.values
-    #     elif method == 'scikit-learn':
-    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
-    #         self.models = {}
-    #         self.coefficients = {}
-            
-    #         if ridge_alpha is not None:
-    #             self.models["Ridge"] = Ridge(alpha=ridge_alpha, fit_intercept=True).fit(X, label)
-    #             self.coefficients["Ridge"] = np.insert(self.models["Ridge"].coef_, 0, self.models["Ridge"].intercept_)
-            
-    #         if lasso_alpha is not None:
-    #             self.models["Lasso"] = Lasso(alpha=lasso_alpha, fit_intercept=True).fit(X, label)
-    #             self.coefficients["Lasso"] = np.insert(self.models["Lasso"].coef_, 0, self.models["Lasso"].intercept_)
-            
-    #         self.models["scikit-learn"] = LinearRegression(fit_intercept=True).fit(X, label)
-    #         self.coefficients["scikit-learn"] = np.insert(self.models["scikit-learn"].coef_, 0, self.models["scikit-learn"].intercept_)
-            
-    #         beta_encoding = self.coefficients["scikit-learn"]
-    #     else:
-    #         raise ValueError(f"Method must be numpy, scipy, statsmodels, or scikit-learn. Got {method}")
-
-    #     beta_series = pd.Series(data=beta_encoding, index=cols)
-    #     elapsed_time = time.time() - start_time
-    #     beta_memory = sys.getsizeof(beta_encoding)
-    #     series_memory = sys.getsizeof(beta_series)
-    #     total_memory = beta_memory + series_memory
-            
-    #     return elapsed_time, total_memory, beta_series
-
-    # def _fit(self, case, method):
-    #     """
-    #     Generalized fit method for computing parameters using specified method.
-    #     """
-    #     features, label, cols = self._get_case_data(case)
-        
-    #     # print(f"This is a {method} summary for {case.capitalize()} case!")
-
-    #     # Start time measurement
-    #     start_time = time.time()
-
-    #     if method == 'numpy':
-    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
-    #     elif method == 'scipy':
-    #         beta_encoding = inv(features.T @ features) @ features.T @ label
-    #     elif method == 'statsmodels':
-    #         X_constant = sm.add_constant(features)
-    #         self.model = sm.OLS(label, X_constant).fit()
-    #         beta_encoding = self.model.params.values
-    #     elif method == 'scikit-learn':
-    #         # Remove intercept column for sklearn
-    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
-
-    #         # Create a dictionary to store models
-    #         self.models = {} 
-            
-    #         self.models["Ridge"] = Ridge(alpha=ridge_alpha, fit_intercept=True).fit(X, label)
-    #         self.coefficients["Ridge"] = np.insert(self.models["Ridge"].coef_, 0, self.models["Ridge"].intercept_)
-
-    #         self.models["Lasso"] = Lasso(alpha=lasso_alpha, fit_intercept=True).fit(X, label)
-    #         self.coefficients["Lasso"] = np.insert(self.models["Lasso"].coef_, 0, self.models["Lasso"].intercept_)
-            
-    #         self.models["scii-kit learn"] = LinearRegression(fit_intercept=True).fit(X, label)
-    #         self.coefficients["scii-kit learn"] = np.insert(self.models["scii-kit learn"].coef_, 0, self.models["scii-kit learn"].intercept_)
-
-    #         beta_encoding = self.models
-    #     else:
-    #         raise ValueError("Method must be {method}.")
-
-    #     beta_series = pd.Series(data=beta_encoding, index=cols)
-
-    #     # Measure elapsed time
-    #     elapsed_time = time.time() - start_time
-
-    #     # Measure memory usage
-    #     beta_memory = sys.getsizeof(beta_encoding)
-    #     series_memory = sys.getsizeof(beta_series)
-    #     total_memory = beta_memory + series_memory
-            
-    #     return elapsed_time, total_memory, beta_series   
 
     # Wrapper for NumPy
     def fit_numpy(self, case):
@@ -512,10 +329,10 @@ class LinearRegression:
     def fit_sklearn(self, case):
         return self._fit(case=case, method='scikit-learn')
 
-    def fit_ridge(self, case=None):
+    def fit_ridge(self, case, ridge_alpha):
         return self._fit(case=case, method='ridge', ridge_alpha=ridge_alpha)
 
-    def fit_lasso(self, case, lasso=None):
+    def fit_lasso(self, case, lasso_alpha):
         return self._fit(case=case, method='lasso', lasso_alpha=lasso_alpha)
 
 

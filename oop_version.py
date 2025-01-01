@@ -1,5 +1,5 @@
 import pandas as pd
-from oop_methods import DataLoader, LinearRegression, Visualizer
+from oop_methods import DataLoader, CustomLinearRegression, Visualizer
 
 # Initialize loader object, with the target (label) column and categorical variable(s) to be dummy coded
 loader = DataLoader(target_column="Performance Index", categorical_columns=["Extracurricular Activities"])
@@ -31,7 +31,7 @@ yes_cols = split_data['Yes']['columns']
 no_X = split_data['No']['X']
 no_cols = split_data['No']['columns']
 
-lr_model = LinearRegression(features_yes=yes_X, features_no=no_X, label=label, cols_yes=yes_cols, cols_no=no_cols)
+lr_model = CustomLinearRegression(features_yes=yes_X, features_no=no_X, label=label, cols_yes=yes_cols, cols_no=no_cols)
 
 # cases = ['no', 'yes']
 # results = {}  # Store results for both cases
@@ -172,3 +172,9 @@ for case in cases:
         )
 
     results[case] = {'results_df': results_df, 'coefficients_df': coefficients_df}
+
+# Print results neatly after the loop
+for case in cases:
+    print(f"\nResults for Extracurricular Activities: {case}")
+    print(results[case]['results_df'])
+    print(results[case]['coefficients_df'])
