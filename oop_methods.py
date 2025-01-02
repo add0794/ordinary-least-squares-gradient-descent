@@ -268,7 +268,7 @@ class CustomLinearRegression:
             # Split the data without the intercept column
             X_train, X_test, y_train, y_test = train_test_split(features, label, test_size=0.2, random_state=10)
             
-            scaling = input('Do you want to scale (normalization, standardization, or no)?')
+            scaling = input('Do you want to scale (normalization, standardization, or no)? ')
             start_time = time.time()
             
             # Handle scaling
