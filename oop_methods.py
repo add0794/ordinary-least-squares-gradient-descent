@@ -1,8 +1,12 @@
+import gc
 import kagglehub
 import matplotlib.pyplot as plt
+# from memory_profiler import profiler
+from memory_profiler import memory_usage, profile  # Import the profile decorator
 import numpy as np 
 import os
 import pandas as pd 
+from pympler.asizeof import asizeof
 from scipy.linalg import inv
 import seaborn as sns
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
@@ -174,13 +178,15 @@ class DataLoader:
             return None
 class Visualizer:
     @staticmethod
-    def plot_correlation_matrix(data):
+    def plot_correlation_matrix(data, target_column):
         """
         Plot a correlation matrix of the data.
         """
+        mask = np.zeros_like(data.corr())
+        upper_triangle = np.triu_indices_from(mask)
+        mask[upper_triangle] = True
         plt.figure(figsize=(10, 8))
-        sns.heatmap(data.corr(), annot=True, fmt=".2f", cmap='coolwarm')
-        plt.title("Correlation Matrix")
+        sns.heatmap(data.corr(), mask=mask, annot=True).set(title=f'Correlation Matrix of {target_column}')
         plt.show()
 
     @staticmethod
@@ -234,21 +240,153 @@ class Visualizer:
     #     plt.xticks(rotation=45)
     #     plt.show()
 
+# def track_memory(method_func):
+#     def wrapper(*args, **kwargs):
+#         mem_before = memory_usage()[0]
+#         result = method_func(*args, **kwargs)
+#         mem_after = memory_usage()[0]
+#         mem_usage = mem_after - mem_before
+        
+#         # Unpack the result tuple and insert memory usage
+#         elapsed_time, _, beta_series = result
+#         return elapsed_time, mem_usage, beta_series
+#     return wrapper
+
+# def track_memory(method_func):
+#     def wrapper(*args, **kwargs):
+#         # Force garbage collection
+#         gc.collect()
+        
+#         # Take multiple samples before
+#         mem_before = np.mean(memory_usage(proc=-1, interval=0.1, timeout=1))
+        
+#         # Run the method
+#         result = method_func(*args, **kwargs)
+        
+#         # Force garbage collection again
+#         gc.collect()
+        
+#         # Take multiple samples after
+#         mem_after = np.mean(memory_usage(proc=-1, interval=0.1, timeout=1))
+        
+#         # Calculate memory usage (use absolute value if very small difference)
+#         mem_diff = mem_after - mem_before
+#         mem_usage = mem_diff if abs(mem_diff) > 0.1 else abs(mem_diff)
+        
+#         # Unpack the result tuple and insert memory usage
+#         elapsed_time, _, beta_series = result
+#         return elapsed_time, mem_usage, beta_series
+    
+#     return wrapper
+
+# import gc
+# from memory_profiler import memory_usage
+# import numpy as np
+
+# def track_memory(method_func):
+#     def wrapper(*args, **kwargs):
+#         # Force garbage collection before starting
+#         gc.collect()
+        
+#         # Disable garbage collection during measurement
+#         gc.disable()
+        
+#         try:
+#             # Take multiple samples before with a smaller interval
+#             mem_before_samples = memory_usage(proc=-1, interval=0.01, timeout=0.5)
+#             mem_before = np.median(mem_before_samples)  # Use median instead of mean
+
+#             print(f"\nDEBUG - {method_name} method:")
+#             print(f"Memory samples before: {mem_before_samples}")
+#             print(f"Median before: {mem_before}")
+            
+#             # Run the method
+#             start_time = time.time()
+#             result = method_func(*args, **kwargs)
+#             elapsed_time = time.time() - start_time
+            
+#             # Take multiple samples after
+#             mem_after_samples = memory_usage(proc=-1, interval=0.01, timeout=0.5)
+#             mem_after = np.median(mem_after_samples)
+
+#             print(f"Memory samples after: {mem_after_samples}")
+#             print(f"Median after: {mem_after}")
+#             print(f"Memory change: {mem_after - mem_before}")
+            
+#             # Calculate absolute memory change
+#             mem_usage = abs(mem_after - mem_before)
+            
+#             # Unpack beta_series from result
+#             _, _, beta_series = result
+            
+#             return elapsed_time, mem_usage, beta_series
+            
+#         finally:
+#             # Always re-enable garbage collection
+#             gc.enable()
+#             gc.collect()
+    
+#     return wrapper
+
+
+def track_memory(method_func):
+    def wrapper(*args, **kwargs):
+        # Force garbage collection before starting
+        gc.collect()
+        
+        # Disable garbage collection during measurement
+        gc.disable()
+        
+        try:
+            # Get method name from kwargs or args
+            method = kwargs.get('method', args[2] if len(args) > 2 else 'unknown')
+            
+            # Take multiple samples before with a smaller interval
+            mem_before_samples = memory_usage(proc=-1, interval=0.01, timeout=0.5)
+            mem_before = np.median(mem_before_samples)
+            
+            print(f"\nDEBUG - {method} method:")
+            print(f"Memory samples before: {mem_before_samples}")
+            print(f"Median before: {mem_before}")
+            
+            # Run the method
+            start_time = time.time()
+            result = method_func(*args, **kwargs)
+            elapsed_time = time.time() - start_time
+            
+            # Take multiple samples after
+            mem_after_samples = memory_usage(proc=-1, interval=0.01, timeout=0.5)
+            mem_after = np.median(mem_after_samples)
+            
+            print(f"Memory samples after: {mem_after_samples}")
+            print(f"Median after: {mem_after}")
+            print(f"Memory change: {mem_after - mem_before}")
+            
+            # Calculate absolute memory change
+            mem_usage = abs(mem_after - mem_before)
+            
+            # Unpack beta_series from result
+            _, _, beta_series = result
+            
+            return elapsed_time, mem_usage, beta_series
+            
+        finally:
+            # Always re-enable garbage collection
+            gc.enable()
+            gc.collect()
+    
+    return wrapper
 class CustomLinearRegression:
     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
-        self.features_yes = features_yes 
+        self.features_yes = features_yes
         self.features_no = features_no
         self.label = label
         self.cols_yes = cols_yes
         self.cols_no = cols_no
+        self.models = {}
+        self.coefficients = {}
 
-        # Add debug flag
-        self.debug = True
-    
     def _get_case_data(self, case):
-        """
-        Retrieve features, label, and columns based on the specified case.
-        """
         if case == 'yes':
             return self.features_yes, self.label, self.cols_yes
         elif case == 'no':
@@ -256,7 +394,7 @@ class CustomLinearRegression:
         else:
             raise ValueError("Case must be 'yes' or 'no'")
 
-
+    @track_memory
     def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
         """
         Fits a linear regression model using the specified method.
@@ -269,7 +407,7 @@ class CustomLinearRegression:
             lasso_alpha: The alpha parameter for Lasso regression.
 
         Returns:
-            A tuple containing the elapsed time, total memory usage, 
+            A tuple containing the elapsed time, memory usage (placeholder), 
             and a pandas Series of the estimated coefficients.
         """
         features, label, cols = self._get_case_data(case)
@@ -285,9 +423,11 @@ class CustomLinearRegression:
             beta_encoding = self.model.params.values
         elif method == 'scikit-learn':
             X = features[:, 1:] if features.shape[1] == len(cols) else features
-            model = LinearRegression() 
+            model = LinearRegression()
             model.fit(X, label)
             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+            self.models["scikit-learn"] = model
+            self.coefficients["scikit-learn"] = beta_encoding
         elif method == 'ridge':
             if ridge_alpha is None:
                 raise ValueError("ridge_alpha must be provided for Ridge regression")
@@ -295,6 +435,8 @@ class CustomLinearRegression:
             model = Ridge(alpha=ridge_alpha)
             model.fit(X, label)
             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+            self.models["Ridge"] = model
+            self.coefficients["Ridge"] = beta_encoding
         elif method == 'lasso':
             if lasso_alpha is None:
                 raise ValueError("lasso_alpha must be provided for Lasso regression")
@@ -302,39 +444,674 @@ class CustomLinearRegression:
             model = Lasso(alpha=lasso_alpha)
             model.fit(X, label)
             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+            self.models["Lasso"] = model
+            self.coefficients["Lasso"] = beta_encoding
         else:
-            raise ValueError(f"Method must be numpy, scipy, statsmodels, scikit-learn, ridge, or lasso. Got {method}")
-
-        beta_series = pd.Series(data=beta_encoding, index=cols)
+            raise ValueError(f"Invalid method: {method}")
 
         elapsed_time = time.time() - start_time
-        beta_memory = sys.getsizeof(beta_encoding)
-        series_memory = sys.getsizeof(beta_series)
-        total_memory = beta_memory + series_memory
+        beta_series = pd.Series(data=beta_encoding, index=cols)
+        
+        # Return with placeholder memory usage that will be replaced by decorator
+        return elapsed_time, 0, beta_series
 
-        return elapsed_time, total_memory, beta_series
-
-    # Wrapper for NumPy
     def fit_numpy(self, case):
         return self._fit(case=case, method='numpy')
 
-    # Wrapper for SciPy
     def fit_scipy(self, case):
         return self._fit(case=case, method='scipy')
 
-    # Wrapper for Statsmodels
     def fit_statsmodels(self, case):
         return self._fit(case=case, method='statsmodels')
 
-    def fit_sklearn(self, case):
-        return self._fit(case=case, method='scikit-learn')
+    def fit_sklearn(self, case, ridge_alpha=None, lasso_alpha=None):
+        return self._fit(case=case, method='scikit-learn', ridge_alpha=ridge_alpha, lasso_alpha=lasso_alpha)
 
     def fit_ridge(self, case, ridge_alpha):
         return self._fit(case=case, method='ridge', ridge_alpha=ridge_alpha)
 
     def fit_lasso(self, case, lasso_alpha):
-        return self._fit(case=case, method='lasso', lasso_alpha=lasso_alpha)
+        return self._fit(case=case, method='lasso', lasso_alpha=lasso_alpha)   
 
+
+
+
+# from sklearn.linear_model import LinearRegression, Ridge, Lasso
+# import collections
+
+# class CustomRegression:
+#     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
+#         self.features_yes = features_yes
+#         self.features_no = features_no
+#         self.label = label
+#         self.cols_yes = cols_yes
+#         self.cols_no = cols_no
+
+#     def _get_case_data(self, case):
+#         if case == 'yes':
+#             return self.features_yes, self.label, self.cols_yes
+#         elif case == 'no':
+#             return self.features_no, self.label, self.cols_no
+#         else:
+#             raise ValueError("Case must be 'yes' or 'no'")
+
+#     @profile
+#     def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+#         """
+#         Fits a linear regression model using the specified method.
+
+#         Args:
+#             case: The case to use ('yes' or 'no').
+#             method: The regression method to use ('numpy', 'scipy', 'statsmodels', 
+#                     'scikit-learn', 'ridge', or 'lasso').
+#             ridge_alpha: The alpha parameter for Ridge regression.
+#             lasso_alpha: The alpha parameter for Lasso regression.
+
+#         Returns:
+#             A tuple containing the elapsed time, memory usage (placeholder), 
+#             and a pandas Series of the estimated coefficients.
+#         """
+#         features, label, cols = self._get_case_data(case)
+#         start_time = time.time()
+
+#         if method == 'numpy':
+#             beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+#         elif method == 'scipy':
+#             beta_encoding = inv(features.T @ features) @ features.T @ label
+#         elif method == 'statsmodels':
+#             X_constant = sm.add_constant(features)
+#             self.model = sm.OLS(label, X_constant).fit()
+#             beta_encoding = self.model.params.values
+#         elif method == 'scikit-learn':
+#             X = features[:, 1:] if features.shape[1] == len(cols) else features
+            
+#             # Create and fit the model directly
+#             if ridge_alpha is not None:
+#                 model = Ridge(alpha=ridge_alpha).fit(X, label)
+#             elif lasso_alpha is not None:
+#                 model = Lasso(alpha=lasso_alpha).fit(X, label)
+#             else:
+#                 model = LinearRegression().fit(X, label) 
+
+#             beta_encoding = np.insert(model.coef_, 0, model.intercept_) 
+#         elif method == 'ridge':
+#             if ridge_alpha is None:
+#                 raise ValueError("ridge_alpha must be provided for Ridge regression")
+#             X = features[:, 1:] if features.shape[1] == len(cols) else features
+#             model = Ridge(alpha=ridge_alpha).fit(X, label)
+#             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+#         elif method == 'lasso':
+#             if lasso_alpha is None:
+#                 raise ValueError("lasso_alpha must be provided for Lasso regression")
+#             X = features[:, 1:] if features.shape[1] == len(cols) else features
+#             model = Lasso(alpha=lasso_alpha).fit(X, label)
+#             beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+#         else:
+#             raise ValueError(f"Invalid method: {method}")
+
+#         elapsed_time = time.time() - start_time
+#         beta_series = pd.Series(data=beta_encoding, index=cols)
+        
+#         # Return with placeholder memory usage that will be replaced by decorator
+#         return elapsed_time, 0, beta_series
+
+#     def fit_numpy(self, case):
+#         return self._fit(case=case, method='numpy')
+
+#     def fit_scipy(self, case):
+#         return self._fit(case=case, method='scipy')
+
+#     def fit_statsmodels(self, case):
+#         return self._fit(case=case, method='statsmodels')
+
+#     def fit_sklearn(self, case, ridge_alpha=None, lasso_alpha=None):
+#         return self._fit(case=case, method='scikit-learn', ridge_alpha=ridge_alpha, lasso_alpha=lasso_alpha)
+
+#     def fit_ridge(self, case, ridge_alpha):
+#         return self._fit(case=case, method='ridge', ridge_alpha=ridge_alpha)
+
+#     def fit_lasso(self, case, lasso_alpha):
+#         return self._fit(case=case, method='lasso', lasso_alpha=lasso_alpha)
+
+class MemoryComparisonRegression:
+    def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
+        self.features_yes = features_yes
+        self.features_no = features_no
+        self.label = label
+        self.cols_yes = cols_yes
+        self.cols_no = cols_no
+        self.models = {}
+        self.coefficients = {}
+
+    def _get_case_data(self, case):
+        if case == 'yes':
+            return self.features_yes, self.label, self.cols_yes
+        elif case == 'no':
+            return self.features_no, self.label, self.cols_no
+        else:
+            raise ValueError("Case must be 'yes' or 'no'")
+
+    def measure_memory(self, obj):
+        """Measure memory using different methods"""
+        return {
+            'sys.getsizeof': sys.getsizeof(obj),
+            'asizeof': asizeof(obj),
+            'memory_profile': np.mean(memory_usage((lambda: obj), interval=0.1, timeout=1))
+        }
+
+    def _fit_with_memory(self, case, method, ridge_alpha=None, lasso_alpha=None):
+        """
+        Fits model and tracks memory using multiple methods
+        """
+        features, label, cols = self._get_case_data(case)
+        gc.collect()  # Force garbage collection before starting
+        
+        # Initialize memory tracking
+        initial_memory = {
+            'sys': sys.getsizeof(features) + sys.getsizeof(label),
+            'asizeof': asizeof([features, label]),
+            'memory_profile': np.mean(memory_usage(-1))
+        }
+        
+        start_time = time.time()
+        
+        if method == 'numpy':
+            model = np.linalg.inv(features.T @ features) @ features.T @ label
+        elif method == 'scipy':
+            model = inv(features.T @ features) @ features.T @ label
+        elif method == 'statsmodels':
+            X_constant = sm.add_constant(features)
+            model = sm.OLS(label, X_constant).fit()
+        elif method == 'scikit-learn':
+            X = features[:, 1:] if features.shape[1] == len(cols) else features
+            model = LinearRegression().fit(X, label)
+        elif method == 'ridge':
+            X = features[:, 1:] if features.shape[1] == len(cols) else features
+            model = Ridge(alpha=ridge_alpha).fit(X, label)
+        elif method == 'lasso':
+            X = features[:, 1:] if features.shape[1] == len(cols) else features
+            model = Lasso(alpha=lasso_alpha).fit(X, label)
+        else:
+            raise ValueError(f"Invalid method: {method}")
+            
+        elapsed_time = time.time() - start_time
+        
+        # Measure final memory state
+        final_memory = {
+            'sys': sys.getsizeof(model),
+            'asizeof': asizeof(model),
+            'memory_profile': np.mean(memory_usage(-1))
+        }
+        
+        # Calculate memory changes
+        memory_changes = {
+            method: final_memory[method] - initial_memory[method]
+            for method in initial_memory.keys()
+        }
+        
+        return {
+            'method': method,
+            'elapsed_time': elapsed_time,
+            'initial_memory': initial_memory,
+            'final_memory': final_memory,
+            'memory_changes': memory_changes,
+            'model': model
+        }
+
+    def compare_methods(self, case, methods=['numpy', 'scipy', 'statsmodels', 'scikit-learn'],
+                       ridge_alpha=None, lasso_alpha=None):
+        """
+        Compare memory usage across different regression methods
+        """
+        results = []
+        
+        for method in methods:
+            print(f"\nAnalyzing {method}...")
+            result = self._fit_with_memory(case, method, ridge_alpha, lasso_alpha)
+            results.append(result)
+            
+            print(f"Memory Changes:")
+            print(f"sys.getsizeof: {result['memory_changes']['sys']:,.0f} bytes")
+            print(f"asizeof: {result['memory_changes']['asizeof']:,.0f} bytes")
+            print(f"memory_profile: {result['memory_changes']['memory_profile']:,.2f} MiB")
+            print(f"Time elapsed: {result['elapsed_time']:.4f} seconds")
+        
+        return pd.DataFrame([{
+            'Method': r['method'],
+            'Time (s)': r['elapsed_time'],
+            'sys.getsizeof (bytes)': r['memory_changes']['sys'],
+            'asizeof (bytes)': r['memory_changes']['asizeof'],
+            'memory_profile (MiB)': r['memory_changes']['memory_profile']
+        } for r in results])
+
+# class CustomLinearRegression:
+#     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
+#         self.features_yes = features_yes 
+#         self.features_no = features_no
+#         self.label = label
+#         self.cols_yes = cols_yes
+#         self.cols_no = cols_no
+
+#         # Add debug flag
+#         self.debug = True
+    
+#     def _get_case_data(self, case):
+#         """
+#         Retrieve features, label, and columns based on the specified case.
+#         """
+#         if case == 'yes':
+#             return self.features_yes, self.label, self.cols_yes
+#         elif case == 'no':
+#             return self.features_no, self.label, self.cols_no
+#         else:
+#             raise ValueError("Case must be 'yes' or 'no'")
+# Memory tracking decorator
+    # def track_memory(method_func):
+    #     def wrapper(*args, **kwargs):
+    #         mem_before = memory_usage()[0]
+    #         result = method_func(*args, **kwargs)
+    #         mem_after = memory_usage()[0]
+    #         return mem_after - mem_before, result
+    #     return wrapper
+
+# class LinearRegressionModel:
+    # Define the regression logic as a standalone method
+    # @track_memory
+    # def _regression_logic(self, method, features, label, cols, ridge_alpha=None, lasso_alpha=None):
+    #     if method == 'numpy':
+    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         beta_encoding = inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         self.model = sm.OLS(label, X_constant).fit()
+    #         beta_encoding = self.model.params.values
+    #     elif method == 'scikit-learn':
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = LinearRegression()
+    #         model.fit(X, label)
+    #         beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'ridge':
+    #         if ridge_alpha is None:
+    #             raise ValueError("ridge_alpha must be provided for Ridge regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Ridge(alpha=ridge_alpha)
+    #         model.fit(X, label)
+    #         beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'lasso':
+    #         if lasso_alpha is None:
+    #             raise ValueError("lasso_alpha must be provided for Lasso regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Lasso(alpha=lasso_alpha)
+    #         model.fit(X, label)
+    #         beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #     else:
+    #         raise ValueError(f"Invalid method: {method}")
+    #     return beta_encoding
+
+    # @track_memory
+    # def _fit():
+    #     if method == 'numpy':
+    #         return np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         return inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         self.model = sm.OLS(label, X_constant).fit()
+    #         return self.model.params.values
+    #     elif method == 'scikit-learn':
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = LinearRegression()
+    #         model.fit(X, label)
+    #         return np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'ridge':
+    #         if ridge_alpha is None:
+    #             raise ValueError("ridge_alpha must be provided for Ridge regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Ridge(alpha=ridge_alpha)
+    #         model.fit(X, label)
+    #         return np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'lasso':
+    #         if lasso_alpha is None:
+    #             raise ValueError("lasso_alpha must be provided for Lasso regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Lasso(alpha=lasso_alpha)
+    #         model.fit(X, label)
+    #         return np.insert(model.coef_, 0, model.intercept_)
+    #     else:
+    #         raise ValueError(f"Invalid method: {method}")
+
+    #     start_time = time.time()
+    #     mem_usage, beta_encoding = track_memory(regression)
+    #     elapsed_time = time.time() - start_time
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+    #     return elapsed_time, mem_usage, beta_series
+
+    # def track_memory(method_func):
+    #     def wrapper(*args, **kwargs):
+    #         mem_before = memory_usage()[0]
+    #         result = method_func(*args, **kwargs)
+    #         mem_after = memory_usage()[0]
+    #         return mem_after - mem_before, result
+    #     return wrapper
+
+    # @track_memory
+    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+    #     """
+    #     Fits a linear regression model using the specified method.
+
+    #     Args:
+    #         case: The case to use ('yes' or 'no').
+    #         method: The regression method to use ('numpy', 'scipy', 'statsmodels', 
+    #                 'scikit-learn', 'ridge', or 'lasso').
+    #         ridge_alpha: The alpha parameter for Ridge regression.
+    #         lasso_alpha: The alpha parameter for Lasso regression.
+
+    #     Returns:
+    #         A tuple containing the elapsed time, total memory usage, 
+    #         and a pandas Series of the estimated coefficients.
+    #     """
+    #     features, label, cols = self._get_case_data(case)
+
+    #     # Track memory and runtime for regression logic
+    #     start_time = time.time()
+    #     mem_before = memory_usage()[0]
+
+    #     if method == 'numpy':
+    #         beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         beta_encoding = inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         self.model = sm.OLS(label, X_constant).fit()
+    #         beta_encoding = self.model.params.values
+    #     elif method == 'scikit-learn':
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = LinearRegression()
+    #         model.fit(X, label)
+    #         beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'ridge':
+    #         if ridge_alpha is None:
+    #             raise ValueError("ridge_alpha must be provided for Ridge regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Ridge(alpha=ridge_alpha)
+    #         model.fit(X, label)
+    #         beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'lasso':
+    #         if lasso_alpha is None:
+    #             raise ValueError("lasso_alpha must be provided for Lasso regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Lasso(alpha=lasso_alpha)
+    #         model.fit(X, label)
+    #         beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+    #     else:
+    #         raise ValueError(f"Invalid method: {method}")
+
+    #     mem_after = memory_usage()[0]
+    #     elapsed_time = time.time() - start_time
+    #     mem_usage = mem_after - mem_before
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+    #     return elapsed_time, mem_usage, beta_series
+
+
+    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+    #     """
+    #     Fits a linear regression model using the specified method.
+
+    #     Args:
+    #         case: The case to use ('yes' or 'no').
+    #         method: The regression method to use ('numpy', 'scipy', 'statsmodels', 
+    #                 'scikit-learn', 'ridge', or 'lasso').
+    #         ridge_alpha: The alpha parameter for Ridge regression.
+    #         lasso_alpha: The alpha parameter for Lasso regression.
+
+    #     Returns:
+    #         A tuple containing the elapsed time, total memory usage, 
+    #         and a pandas Series of the estimated coefficients.
+    #     """
+    #     features, label, cols = self._get_case_data(case)
+
+    #     start_time = time.time()
+    #     mem_usage, beta_encoding = self._regression_logic(
+    #         method, features, label, cols, ridge_alpha=ridge_alpha, lasso_alpha=lasso_alpha
+    #     )
+    #     elapsed_time = time.time() - start_time
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+    #     return elapsed_time, mem_usage, beta_series
+
+    # # Wrapper for NumPy
+    # def fit_numpy(self, case):
+    #     return self._fit(case=case, method='numpy')
+
+    # # Wrapper for SciPy
+    # def fit_scipy(self, case):
+    #     return self._fit(case=case, method='scipy')
+
+    # # Wrapper for Statsmodels
+    # def fit_statsmodels(self, case):
+    #     return self._fit(case=case, method='statsmodels')
+
+    # def fit_sklearn(self, case):
+    #     return self._fit(case=case, method='scikit-learn')
+
+    # def fit_ridge(self, case, ridge_alpha):
+    #     return self._fit(case=case, method='ridge', ridge_alpha=ridge_alpha)
+
+    # def fit_lasso(self, case, lasso_alpha):
+    #     return self._fit(case=case, method='lasso', lasso_alpha=lasso_alpha)
+
+    # def track_memory(method_func, *args, **kwargs):
+    #     mem_before = memory_usage()[0]
+    #     result = method_func(*args, **kwargs)
+    #     mem_after = memory_usage()[0]
+    #     return mem_after - mem_before, result
+
+    # def track_memory(func):
+    #     """
+    #     Tracks memory usage of a function call.
+
+    #     Args:
+    #         func: The function to be tracked.
+
+    #     Returns:
+    #         A wrapper function that measures memory before and after the function call
+    #         and returns the memory usage difference along with the result.
+    #     """
+    #     def wrapper(*args, **kwargs):
+    #         mem_before = memory_usage()[0]
+    #         result = func(*args, **kwargs)
+    #         mem_after = memory_usage()[0]
+    #         return mem_after - mem_before, result
+
+    #     return wrapper
+
+    # @track_memory
+    # def regression(method, features, label, cols, ridge_alpha=None, lasso_alpha=None):
+    #     """
+    #     Performs regression based on the specified method.
+
+    #     Args:
+    #         method: The regression method to use ('numpy', 'scipy', 'statsmodels', 
+    #                 'scikit-learn', 'ridge', or 'lasso').
+    #         features: The feature matrix.
+    #         label: The target variable.
+    #         cols: Column names for the coefficients.
+    #         ridge_alpha: The alpha parameter for Ridge regression.
+    #         lasso_alpha: The alpha parameter for Lasso regression.
+
+    #     Returns:
+    #         A numpy array of regression coefficients.
+    #     """
+    #     if method == 'numpy':
+    #         return np.linalg.inv(features.T @ features) @ features.T @ label
+    #     elif method == 'scipy':
+    #         return inv(features.T @ features) @ features.T @ label
+    #     elif method == 'statsmodels':
+    #         X_constant = sm.add_constant(features)
+    #         model = sm.OLS(label, X_constant).fit()
+    #         return model.params.values
+    #     elif method == 'scikit-learn':
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = LinearRegression()
+    #         model.fit(X, label)
+    #         return np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'ridge':
+    #         if ridge_alpha is None:
+    #             raise ValueError("ridge_alpha must be provided for Ridge regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Ridge(alpha=ridge_alpha)
+    #         model.fit(X, label)
+    #         return np.insert(model.coef_, 0, model.intercept_)
+    #     elif method == 'lasso':
+    #         if lasso_alpha is None:
+    #             raise ValueError("lasso_alpha must be provided for Lasso regression")
+    #         X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #         model = Lasso(alpha=lasso_alpha)
+    #         model.fit(X, label)
+    #         return np.insert(model.coef_, 0, model.intercept_)
+    #     else:
+    #         raise ValueError(f"Invalid method: {method}")
+
+    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+    #     """
+    #     Fits a linear regression model using the specified method.
+
+    #     Args:
+    #         case: The case to use ('yes' or 'no').
+    #         method: The regression method to use ('numpy', 'scipy', 'statsmodels', 
+    #                 'scikit-learn', 'ridge', or 'lasso').
+    #         ridge_alpha: The alpha parameter for Ridge regression.
+    #         lasso_alpha: The alpha parameter for Lasso regression.
+
+    #     Returns:
+    #         A tuple containing the elapsed time, total memory usage, 
+    #         and a pandas Series of the estimated coefficients.
+    #     """
+    #     features, label, cols = self._get_case_data(case)
+
+    #     start_time = time.time()
+    #     mem_usage, beta_encoding = regression(
+    #         method=method, 
+    #         features=features, 
+    #         label=label, 
+    #         cols=cols, 
+    #         ridge_alpha=ridge_alpha, 
+    #         lasso_alpha=lasso_alpha
+    #     )
+    #     elapsed_time = time.time() - start_time
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+    #     return elapsed_time, mem_usage, beta_series
+
+
+    # def _fit(self, case, method, ridge_alpha=None, lasso_alpha=None):
+    #     """
+    #     Fits a linear regression model using the specified method.
+
+    #     Args:
+    #         case: The case to use ('yes' or 'no').
+    #         method: The regression method to use ('numpy', 'scipy', 'statsmodels', 
+    #                 'scikit-learn', 'ridge', or 'lasso').
+    #         ridge_alpha: The alpha parameter for Ridge regression.
+    #         lasso_alpha: The alpha parameter for Lasso regression.
+
+    #     Returns:
+    #         A tuple containing the elapsed time, total memory usage, 
+    #         and a pandas Series of the estimated coefficients.
+    #     """
+
+    #     features, label, cols = self._get_case_data(case)
+
+    #     def regression():
+    #         if method == 'numpy':
+    #             return np.linalg.inv(features.T @ features) @ features.T @ label
+    #         elif method == 'scipy':
+    #             return inv(features.T @ features) @ features.T @ label
+    #         elif method == 'statsmodels':
+    #             X_constant = sm.add_constant(features)
+    #             self.model = sm.OLS(label, X_constant).fit()
+    #             return self.model.params.values
+    #         elif method == 'scikit-learn':
+    #             X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #             model = LinearRegression()
+    #             model.fit(X, label)
+    #             return np.insert(model.coef_, 0, model.intercept_)
+    #         elif method == 'ridge':
+    #             if ridge_alpha is None:
+    #                 raise ValueError("ridge_alpha must be provided for Ridge regression")
+    #             X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #             model = Ridge(alpha=ridge_alpha)
+    #             model.fit(X, label)
+    #             return np.insert(model.coef_, 0, model.intercept_)
+    #         elif method == 'lasso':
+    #             if lasso_alpha is None:
+    #                 raise ValueError("lasso_alpha must be provided for Lasso regression")
+    #             X = features[:, 1:] if features.shape[1] == len(cols) else features
+    #             model = Lasso(alpha=lasso_alpha)
+    #             model.fit(X, label)
+    #             return np.insert(model.coef_, 0, model.intercept_)
+    #         else:
+    #             raise ValueError(f"Invalid method: {method}")
+
+    #     start_time = time.time()
+    #     mem_usage, beta_encoding = track_memory(regression)
+    #     elapsed_time = time.time() - start_time
+
+    #     beta_series = pd.Series(data=beta_encoding, index=cols)
+    #     return elapsed_time, mem_usage, beta_series
+        # features, label, cols = self._get_case_data(case)
+        # start_time = time.time()
+
+        # if method == 'numpy':
+        #     beta_encoding = np.linalg.inv(features.T @ features) @ features.T @ label
+        # elif method == 'scipy':
+        #     beta_encoding = inv(features.T @ features) @ features.T @ label
+        # elif method == 'statsmodels':
+        #     X_constant = sm.add_constant(features)
+        #     self.model = sm.OLS(label, X_constant).fit()
+        #     beta_encoding = self.model.params.values
+        # elif method == 'scikit-learn':
+        #     X = features[:, 1:] if features.shape[1] == len(cols) else features
+        #     model = LinearRegression() 
+        #     model.fit(X, label)
+        #     beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+        # elif method == 'ridge':
+        #     if ridge_alpha is None:
+        #         raise ValueError("ridge_alpha must be provided for Ridge regression")
+        #     X = features[:, 1:] if features.shape[1] == len(cols) else features
+        #     model = Ridge(alpha=ridge_alpha)
+        #     model.fit(X, label)
+        #     beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+        # elif method == 'lasso':
+        #     if lasso_alpha is None:
+        #         raise ValueError("lasso_alpha must be provided for Lasso regression")
+        #     X = features[:, 1:] if features.shape[1] == len(cols) else features
+        #     model = Lasso(alpha=lasso_alpha)
+        #     model.fit(X, label)
+        #     beta_encoding = np.insert(model.coef_, 0, model.intercept_)
+        # else:
+        #     raise ValueError(f"Method must be numpy, scipy, statsmodels, scikit-learn, ridge, or lasso. Got {method}")
+
+        # beta_series = pd.Series(data=beta_encoding, index=cols)
+
+        # elapsed_time = time.time() - start_time
+        # start_mem = memory_usage()
+
+        # # Perform regression computation
+        # end_mem = memory_usage()
+        # peak_memory = max(end_mem) - min(start_mem)
+        # # beta_memory = sys.getsizeof(beta_encoding)
+        # # series_memory = sys.getsizeof(beta_series)
+        # # total_memory = beta_memory + series_memory
+        # # total_memory = asizeof(beta_series)  # Accurate memory measurement
+
+        # return elapsed_time, peak_memory, beta_series
+
+
+# GRADIENT DESCENT
 
 #     def gradient_descent(self, case, learning_rate, epochs, precision):
 #         """
@@ -480,53 +1257,3 @@ class CustomLinearRegression:
 # #             print(f"Error in gradient_descent: {str(e)}")
 # #             print(f"Traceback: {traceback.format_exc()}")
 # #             raise
-
-# #     def train_sklearn_models(self, features, key, cols, ridge_alpha=1.0, lasso_alpha=1.0):
-# #         """Train multiple sklearn models with error handling"""
-# #         try:
-# #             results = {}
-            
-# #             # Remove intercept column for sklearn
-# #             X = features[:, 1:] if features.shape[1] == len(cols) else features
-            
-# #             models = {
-# #                 'Scikit-Learn OLS': linear_model.LinearRegression(fit_intercept=True),
-# #                 'Ridge': linear_model.Ridge(alpha=ridge_alpha, fit_intercept=True),
-# #                 'Lasso': linear_model.Lasso(alpha=lasso_alpha, fit_intercept=True)
-# #             }
-            
-# #             for name, model in models.items():
-# #                 start_time = time.time()
-# #                 model.fit(X, self.label)
-                
-# #                 # Get coefficients including intercept
-# #                 coefficients = np.insert(model.coef_, 0, model.intercept_)
-# #                 beta_series = pd.Series(data=coefficients, index=cols)
-                
-# #                 # Calculate metrics
-# #                 y_pred = model.predict(X)
-#                 r2 = model.score(X, self.label)
-#                 mse = np.mean((self.label - y_pred) ** 2)
-                
-#                 elapsed_time = time.time() - start_time
-                
-#                 results[name] = {
-#                     'Coefficients': beta_series,
-#                     'R-squared': r2,
-#                     'MSE': mse,
-#                     'Elapsed_time': elapsed_time
-#                 }
-                
-#                 print(f"\n{name} ({key}):")
-#                 print(f"R-squared: {r2:.4f}")
-#                 print(f"MSE: {mse:.4f}")
-#                 print(f"Elapsed time: {elapsed_time:.6f} seconds")
-#                 print("Coefficients:")
-#                 print(beta_series)
-            
-#             return results
-            
-#         except Exception as e:
-#             print(f"Error in train_sklearn_models: {str(e)}")
-#             print(f"Traceback: {traceback.format_exc()}")
-#             raise
