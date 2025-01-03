@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import statsmodels.api as sm
 import time
+
 class DataLoader:
     def __init__(self, target_column, categorical_columns=None):
         """
@@ -171,6 +172,7 @@ class DataLoader:
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
             return None
+            
 class Visualizer:
     @staticmethod
     def plot_correlation_matrix(data, target_column):
@@ -195,6 +197,7 @@ class Visualizer:
         plt.xlabel(target_column)
         plt.ylabel("Frequency")
         plt.show()
+
 class CustomLinearRegression:
     def __init__(self, features_yes, features_no, label, cols_yes, cols_no):
         self.features_yes = features_yes
