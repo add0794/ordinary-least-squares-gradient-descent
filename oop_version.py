@@ -1,5 +1,4 @@
 import pandas as pd
-import memory_profiler
 from oop_methods import DataLoader, CustomLinearRegression, Visualizer
 
 # Initialize loader object, with the target (label) column and categorical variable(s) to be dummy coded
